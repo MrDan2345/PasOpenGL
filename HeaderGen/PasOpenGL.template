@@ -1,0 +1,240 @@
+unit PasOpenGL;
+
+{$mode objfpc}
+{$macro on}
+{$modeswitch advancedrecords}
+{$modeswitch typehelpers}
+{$h+}
+
+interface
+
+{$if defined(WINDOWS)}
+  uses Windows;
+{$elseif defined(LINUX)}
+  uses X, XLib, XUtil;
+{$elseif defined(DARWIN)}
+  uses MacOSAll;
+{$endif}
+
+{$if defined(WINDOWS)}
+  {$define libdecl := stdcall}
+{$else}
+  {$define libdecl := cdecl}
+{$endif}
+
+{$if defined(WINDOWS)}
+  const LibGL = 'opengl32.dll';
+{$elseif defined(LINUX)}
+  const LibGL = 'libGL.so.1';
+{$elseif defined(DARWIN)}
+  const LibGL = 'System/Library/Frameworks/OpenGL.framework/Libraries/libGL.dylib';
+{$endif}
+
+{#intf}
+{$if defined(WINDOWS)}
+  type TwglAttribs = record
+  private
+    var Attribs: array[0..63] of TGLint;
+    procedure Initialize; inline;
+    procedure Finalize; inline;
+    function GetData: PGLInt;
+    function GetAttrib(const Index: TGLint): TGLint;
+    procedure SetAttrib(const Index: TGLint; const Value: TGLint);
+  public
+    property Data: PGLint read GetData;
+    property Attrib[const Index: TGLint]: TGLint read GetAttrib write SetAttrib; default;
+    class operator Initialize(var v: TwglAttribs);
+    class operator Finalize(var v: TwglAttribs);
+  end;
+{$endif}
+
+implementation
+
+{$ifdef CPU64}
+  type TLibHandle = QWord;
+{$else}
+  type TLibHandle = LongWord;
+{$endif}
+
+{$if defined(WINDOWS)}
+procedure TwglAttribs.Initialize;
+begin
+  {$push}
+  {$hints off}
+  FillChar(Attribs, SizeOf(Attribs), 0);
+  {$pop}
+end;
+
+procedure TwglAttribs.Finalize;
+begin
+
+end;
+
+function TwglAttribs.GetData: PGLInt;
+begin
+  Result := @Attribs;
+end;
+
+function TwglAttribs.GetAttrib(const Index: TGLint): TGLint;
+  var i: Integer;
+begin
+  for i := 0 to Length(Attribs) shr 1 do
+  begin
+    if Attribs[i * 2] = Index then Exit(Attribs[i * 2 + 1]);
+  end;
+  Result := 0;
+end;
+
+procedure TwglAttribs.SetAttrib(const Index: TGLint; const Value: TGLint);
+  var i: Integer;
+  var ai: TGLint;
+begin
+  for i := 0 to Length(Attribs) shr 1 do
+  begin
+    ai := i * 2;
+    if (Attribs[ai] = Index) or (Attribs[ai] = 0) then
+    begin
+      Attribs[ai] := Index;
+      Attribs[ai + 1] := Value;
+      Exit;
+    end;
+  end;
+end;
+
+class operator TwglAttribs.Initialize(var v: TwglAttribs);
+begin
+  v.Initialize;
+end;
+
+class operator TwglAttribs.Finalize(var v: TwglAttribs);
+begin
+  v.Finalize;
+end;
+
+function PlatformLibOpen(Name: PAnsiChar): TLibHandle; stdcall; external 'kernel32.dll' name 'LoadLibraryA';
+function PlatformLibClose(Handle: TLibHandle): Boolean; stdcall; external 'kernel32.dll' name 'FreeLibrary';
+function PlatformLibAddress(Handle: TLibHandle; ProcName: PAnsiChar): Pointer; stdcall; external 'kernel32.dll' name 'GetProcAddress';
+function GDIChoosePixelFormat(DC: HDC; pfd: PPixelFormatDescriptor): Integer; stdcall; external 'gdi32' name 'ChoosePixelFormat';
+function GDIDescribePixelFormat(DC: HDC; ipfd: LongInt; cjpfd: UINT; const pfd: PPixelFormatDescriptor): LongInt; external 'gdi32' name 'DescribePixelFormat';
+function GDIGetPixelFormat(DC: HDC): LongInt; external 'gdi32' name 'GetPixelFormat';
+function GDISetPixelFormat(DC: HDC; PixelFormat: Integer; pfd: PPixelFormatDescriptor): WINBOOL; external 'gdi32' name 'SetPixelFormat';
+function GDISwapBuffers(DC: HDC): BOOL; external 'gdi32' name 'SwapBuffers';
+{$else}
+function PlatformLibOpen(Name: PAnsiChar; Flags: LongInt): TLibHandle; cdecl; external 'dl' name 'dlopen';
+function PlatformLibClose(Handle: TLibHandle): LongInt; cdecl; external 'dl' name 'dlclose';
+function PlatformLibAddress(Handle: TLibHandle; ProcName: PAnsiChar): Pointer; cdecl; external 'dl' name 'dlsym';
+{$endif}
+
+function LibOpen(const Name: String): TLibHandle;
+begin
+  Result := PlatformLibOpen(PAnsiChar(Name){$if not defined(WINDOWS)}, 1{$endif});
+end;
+
+function LibClose(const Handle: TLibHandle): Boolean;
+begin
+  Result := PlatformLibClose(Handle){$if not defined(WINDOWS)} = 0{$endif};
+end;
+
+function LibAddress(const Handle: TLibHandle; const ProcName: String): Pointer;
+begin
+  Result := PlatformLibAddress(Handle, PAnsiChar(ProcName));
+end;
+
+var Lib: TLibHandle;
+
+function ProcAddress(const ProcName: String): Pointer;
+begin
+{$if defined(WINDOWS)}
+  Result := wglGetProcAddress(PAnsiChar(ProcName));
+  if not Assigned(Result) then Result := LibAddress(Lib, ProcName);
+{$else}
+  Result := LibAddress(Lib, ProcName);
+{$endif}
+end; 
+
+procedure LoadCommands;
+begin
+{#impl}
+end;
+
+{$if defined(WINDOWS)}
+procedure WinInit;
+  var TmpGLRC: HGLRC;
+  var TmpDC: HDC;
+  var TmpWindow: HWND;
+  procedure WindowCreate;
+    var pf: Integer;
+    var pfd: TPixelFormatDescriptor;
+  begin
+    TmpWindow := CreateWindowEx(
+      WS_EX_APPWINDOW or WS_EX_WINDOWEDGE,
+      PChar('STATIC'),
+      PChar('PasOpenGL Temporary'),
+      WS_OVERLAPPEDWINDOW or WS_CLIPSIBLINGS or WS_CLIPCHILDREN,
+      0, 0, 100, 100,
+      0, 0, hInstance,
+      nil
+    );
+    TmpDC := GetDC(TmpWindow);
+    {$push}
+    {$hints off}
+    FillChar(pfd, SizeOf(pfd), 0);
+    {$pop}
+    pfd.nSize := SizeOf(pfd);
+    pfd.nVersion := 1;
+    pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
+    pfd.iPixelType := PFD_TYPE_RGBA;
+    pfd.iLayerType := PFD_MAIN_PLANE;
+    pf := GDIChoosePixelFormat(TmpDC, @pfd);
+    GDISetPixelFormat(TmpDC, pf, @pfd);
+    TmpGLRC := wglCreateContext(TmpDC);
+    wglMakeCurrent(TmpDC, TmpGLRC);
+  end;
+  procedure WindowDestroy;
+  begin
+    wglMakeCurrent(TmpDC, 0);
+    wglDeleteContext(TmpGLRC);
+    ReleaseDC(TmpWindow, TmpDC);
+    DestroyWindow(TmpWindow);
+  end;
+begin
+  wglCreateContext := TwglCreateContext(LibAddress(Lib, 'wglCreateContext'));
+  wglDeleteContext := TwglDeleteContext(LibAddress(Lib, 'wglDeleteContext'));
+  wglMakeCurrent := TwglMakeCurrent(LibAddress(Lib, 'wglMakeCurrent'));
+  WindowCreate;
+  wglGetProcAddress := TwglGetProcAddress(LibAddress(Lib, 'wglGetProcAddress'));
+  LoadCommands;
+  if not Assigned(ChoosePixelFormat) then ChoosePixelFormat := TChoosePixelFormat(@GDIChoosePixelFormat);
+  if not Assigned(DescribePixelFormat) then DescribePixelFormat := TDescribePixelFormat(@GDIDescribePixelFormat);
+  if not Assigned(GetPixelFormat) then GetPixelFormat := TGetPixelFormat(@GDIGetPixelFormat);
+  if not Assigned(SetPixelFormat) then SetPixelFormat := TSetPixelFormat(@GDISetPixelFormat);
+  if not Assigned(SwapBuffers) then SwapBuffers := TSwapBuffers(@GDISwapBuffers);
+  WindowDestroy;
+end;
+{$endif}
+
+procedure LoadOpenGL;
+begin
+  Lib := LibOpen(LibGL);
+{$if defined(WINDOWS)}
+  WinInit;
+{$endif}
+end;
+
+procedure UnloadOpenGL;
+begin
+  if Lib <> 0 then LibClose(Lib);
+  Lib := 0;
+end;
+
+initialization
+begin
+  LoadOpenGL;
+end;
+
+finalization
+begin
+  UnloadOpenGL;
+end;
+
+end.

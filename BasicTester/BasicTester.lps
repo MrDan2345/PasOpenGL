@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="12"/>
+    <BuildModes Active="Default"/>
+    <Units>
+      <Unit>
+        <Filename Value="BasicTester.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
+        <TopLine Value="101"/>
+        <CursorPos X="53" Y="112"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\Utils\Common\CommonUtils.pas"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="1082"/>
+        <CursorPos X="6" Y="1093"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\g2mp\source\G2Math.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="4"/>
+        <CursorPos X="3" Y="12"/>
+        <UsageCount Value="10"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\gen3\source\g3_types.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="1198"/>
+        <CursorPos X="5" Y="1220"/>
+        <UsageCount Value="11"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\gen3\source\g3_input_types.inc"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="92"/>
+        <UsageCount Value="11"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\lazarus\fpc\3.2.2\source\rtl\inc\systemh.inc"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="412"/>
+        <CursorPos X="3" Y="423"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="C:\gen3\source\g3_target.inc"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="11"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\HeaderGen\PasOpenGL.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="16830"/>
+        <CursorPos Y="16845"/>
+        <UsageCount Value="11"/>
+      </Unit>
+    </Units>
+    <JumpHistory HistoryIndex="13">
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="205" TopLine="197"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="206" TopLine="197"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="207" TopLine="197"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="208" TopLine="197"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="209" TopLine="197"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="210" TopLine="197"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="200" TopLine="195"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="210" TopLine="195"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="210" TopLine="202"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="212" TopLine="202"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="213" TopLine="202"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="214" TopLine="202"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="215" TopLine="202"/>
+      </Position>
+      <Position>
+        <Filename Value="BasicTester.lpr"/>
+        <Caret Line="65" Column="25" TopLine="47"/>
+      </Position>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode=""/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>

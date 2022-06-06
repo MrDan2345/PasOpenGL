@@ -1,0 +1,3 @@
+[submodule "PasUtils"]
+	path = PasUtils
+	url = git@github.com:MrDan2345/PasUtils.git

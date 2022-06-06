@@ -1,0 +1,7 @@
+#version 430 core
+layout (location = 1) in vec4 in_c;
+out vec4 out_c;
+
+void main() {
+    out_c = in_c;
+} 
