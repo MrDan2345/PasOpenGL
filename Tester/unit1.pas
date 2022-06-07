@@ -171,7 +171,7 @@ begin
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, SizeOf(Indices), @Indices, GL_STATIC_DRAW);
   VertexShader := glCreateShader(GL_VERTEX_SHADER);
-  ShaderSource := UFileToStr('vs.txt');
+  ShaderSource := UFileToStr('shader_vs.txt');
   Ptr := PAnsiChar(ShaderSource);
   glShaderSource(VertexShader, 1, @Ptr, nil);
   glCompileShader(VertexShader);
@@ -182,7 +182,7 @@ begin
     WriteLn(ErrorBuffer);
   end;
   PixelShader := glCreateShader(GL_FRAGMENT_SHADER);
-  ShaderSource := UFileToStr('ps.txt');
+  ShaderSource := UFileToStr('shader_ps.txt');
   Ptr := PAnsiChar(ShaderSource);
   glShaderSource(PixelShader, 1, @Ptr, nil);
   glCompileShader(PixelShader);

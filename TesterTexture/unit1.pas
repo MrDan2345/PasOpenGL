@@ -117,7 +117,7 @@ begin
   FormatAttribs[WGL_STENCIL_BITS_ARB] := 8;
   FormatAttribs[WGL_DOUBLE_BUFFER_ARB] := GL_TRUE;
   FormatAttribs[WGL_SAMPLE_BUFFERS_ARB] := GL_TRUE;
-  FormatAttribs[WGL_SAMPLES_ARB] := 4;
+  FormatAttribs[WGL_SAMPLES_ARB] := 8;
   pfn := 1; pf := 0;
   if not wglChoosePixelFormatARB(DeviceContext, FormatAttribs.Data, nil, 1, @pf, @pfn) then
   begin
@@ -217,7 +217,7 @@ begin
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
   VertexShader := glCreateShader(GL_VERTEX_SHADER);
-  ShaderSource := UFileToStr('vs.txt');
+  ShaderSource := UFileToStr('shader_vs.txt');
   Ptr := PAnsiChar(ShaderSource);
   glShaderSource(VertexShader, 1, @Ptr, nil);
   glCompileShader(VertexShader);
@@ -228,7 +228,7 @@ begin
     WriteLn(ErrorBuffer);
   end;
   PixelShader := glCreateShader(GL_FRAGMENT_SHADER);
-  ShaderSource := UFileToStr('ps.txt');
+  ShaderSource := UFileToStr('shader_ps.txt');
   Ptr := PAnsiChar(ShaderSource);
   glShaderSource(PixelShader, 1, @Ptr, nil);
   glCompileShader(PixelShader);
