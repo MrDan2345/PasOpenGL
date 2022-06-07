@@ -1,0 +1,14 @@
+#version 430 core
+layout (location = 0) in vec3 in_p;
+layout (location = 1) in vec4 in_c;
+layout (location = 2) in vec2 in_t;
+layout (location = 1) out vec4 out_c;
+layout (location = 2) out vec2 out_t;
+
+uniform mat4x4 WVP;
+
+void main() {
+    gl_Position = vec4(in_p, 1.0) * WVP;
+	out_c = in_c;
+	out_t = in_t;
+}
