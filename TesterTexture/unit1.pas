@@ -27,12 +27,15 @@ type
     var Shader: TGLuint;
     var Texture: TGLuint;
     var UniformTex0: TGLint;
+    var TaskLoadTexture: specialize TUTask<TUImageDataShared>;
+    procedure Tick;
     procedure InitializeOpenGL;
     procedure FinalizeOpenGL;
     procedure PrintInfo;
     procedure Initialize;
     procedure Finalize;
     procedure ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
+    function TFLoadTexture(const Args: array of const): TUImageDataShared;
   public
 
   end;
@@ -45,6 +48,33 @@ implementation
 {$R *.lfm}
 
 procedure TForm1.Timer1Timer(Sender: TObject);
+  var TextureFormat, TextureType: TGLenum;
+begin
+  if TaskLoadTexture.IsStarted and TaskLoadTexture.IsComplete then
+  begin
+    if TaskLoadTexture.TaskResult.IsValid then
+    begin
+      ImageFormatToGL(TaskLoadTexture.TaskResult.Ptr.Format, TextureFormat, TextureType);
+      glGenTextures(1, @Texture);
+      glBindTexture(GL_TEXTURE_2D, Texture);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGB,
+        TaskLoadTexture.TaskResult.Ptr.Width, TaskLoadTexture.TaskResult.Ptr.Height, 0,
+        TextureFormat, TextureType, TaskLoadTexture.TaskResult.Ptr.Data
+      );
+      glGenerateMipmap(GL_TEXTURE_2D);
+    end;
+    TaskLoadTexture.Reset;
+  end;
+  Tick;
+  SwapBuffers(DeviceContext);
+end;
+
+procedure TForm1.Tick;
   var W, V, P, WVP: TUMat;
 begin
   W := TUMat.RotationY(((GetTickCount mod 4000) / 4000) * UTwoPi);
@@ -60,13 +90,14 @@ begin
   glBindVertexArray(VertexArray);
   glUseProgram(Shader);
   glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, Texture);
-  glUniform1i(UniformTex0, 0);
+  if (Texture > 0) then
+  begin
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, Texture);
+    glUniform1i(UniformTex0, 0);
+  end;
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, nil);
   //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-  SwapBuffers(DeviceContext);
 end;
 
 procedure TForm1.InitializeOpenGL;
@@ -168,8 +199,6 @@ procedure TForm1.Initialize;
   var Ptr: Pointer;
   var i: Integer;
   var ErrorBuffer: array[0..511] of AnsiChar;
-  var ImageData: TUImageDataShared;
-  var TextureFormat, TextureType: TGLenum;
 begin
   glGenVertexArrays(1, @VertexArray);
   glGenBuffers(1, @VertexBuffer);
@@ -223,22 +252,8 @@ begin
   glDeleteShader(VertexShader);
   UniformWVP := glGetUniformLocation(Shader, PGLchar(PAnsiChar('WVP')));
   UniformTex0 := glGetUniformLocation(Shader, PGLchar(PAnsiChar('tex0')));
-  ImageData := ULoadImageData('../Assets/crate_c.png');
-  if ImageData.IsValid then
-  begin
-    ImageFormatToGL(ImageData.Ptr.Format, TextureFormat, TextureType);
-    glGenTextures(1, @Texture);
-    glBindTexture(GL_TEXTURE_2D, Texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(
-      GL_TEXTURE_2D, 0, GL_RGB, ImageData.Ptr.Width, ImageData.Ptr.Height, 0,
-      TextureFormat, TextureType, ImageData.Ptr.Data
-    );
-    glGenerateMipmap(GL_TEXTURE_2D);
-  end;
+  Texture := 0;
+  TaskLoadTexture := TaskLoadTexture.StartTask(@TFLoadTexture, ['../Assets/crate_c.png']);
 end;
 
 procedure TForm1.Finalize;
@@ -263,6 +278,14 @@ begin
   end;
   Format := 0;
   DataType := 0;
+end;
+
+function TForm1.TFLoadTexture(const Args: array of const): TUImageDataShared;
+  var f: String;
+begin
+  if Length(Args) < 1 then Exit;
+  f := AnsiString(Args[0].VAnsiString);
+  Result := ULoadImageData(f);
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
