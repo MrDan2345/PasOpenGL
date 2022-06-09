@@ -6,11 +6,7 @@ uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils, OpenSSL, OpenSSLSockets, FPHttpClient, CommonUtils
-  {
-   ,PasOpenGL
-  //}
-  { you can add units after this };
+  Classes, SysUtils, OpenSSL, OpenSSLSockets, FPHttpClient, CommonUtils;
 
 type
   TMyHttpClient = class (TFPHTTPClient)
@@ -701,6 +697,23 @@ procedure Run;
   var de: THeaderGen.TEnumDecl;
   var df: THeaderGen.TFuncDecl;
   var Templ: String;
+  const GDIFunctions: array[0..4] of String = (
+    'ChoosePixelFormat',
+    'DescribePixelFormat',
+    'GetPixelFormat',
+    'SetPixelFormat',
+    'SwapBuffers'
+  );
+  function IsGDI(const FuncName: String): Boolean;
+    var s: String;
+  begin
+    for s in GDIFunctions do
+    if FuncName = s then
+    begin
+      Exit(True);
+    end;
+    Result := False;
+  end;
 begin
   DownloadXML;
   Gen := THeaderGen.Create;
@@ -816,7 +829,14 @@ begin
       for df in Gen.FuncDefs do
       if df.Platform = 'windows' then
       begin
-        s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
+        if IsGDI(df.FuncDesc.Name) then
+        begin
+          s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(@GDI' + df.FuncDesc.Name + ');'#$D#$A;
+        end
+        else
+        begin
+          s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
+        end;
         if df.HasAlias then
         begin
           s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + #$D#$A;

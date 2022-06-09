@@ -21,9 +21,8 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="Unit1"/>
-        <IsVisibleTab Value="True"/>
         <TopLine Value="270"/>
-        <CursorPos X="68" Y="277"/>
+        <CursorPos X="50" Y="281"/>
         <UsageCount Value="246"/>
         <Bookmarks Count="1">
           <Item0 X="82" Y="108" ID="2"/>
@@ -71,17 +70,18 @@
       <Unit>
         <Filename Value="..\HeaderGen\PasOpenGL.template"/>
         <EditorIndex Value="6"/>
-        <TopLine Value="197"/>
-        <CursorPos X="34" Y="211"/>
+        <TopLine Value="185"/>
+        <CursorPos X="80" Y="172"/>
         <UsageCount Value="122"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="None"/>
       </Unit>
       <Unit>
         <Filename Value="..\PasOpenGL.pas"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="5"/>
-        <TopLine Value="16965"/>
-        <CursorPos X="3" Y="878"/>
+        <TopLine Value="16912"/>
+        <CursorPos X="30" Y="16925"/>
         <UsageCount Value="119"/>
         <Loaded Value="True"/>
       </Unit>

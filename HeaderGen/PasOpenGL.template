@@ -170,7 +170,6 @@ procedure WinInit;
   var pfd: TPixelFormatDescriptor;
 begin
   wglCreateContext := TwglCreateContext(LibAddress(Lib, 'wglCreateContext'));
-  wglDeleteContext := TwglDeleteContext(LibAddress(Lib, 'wglDeleteContext'));
   wglMakeCurrent := TwglMakeCurrent(LibAddress(Lib, 'wglMakeCurrent'));
   TmpWindow := CreateWindowEx(
     WS_EX_APPWINDOW or WS_EX_WINDOWEDGE,
@@ -197,11 +196,6 @@ begin
   wglMakeCurrent(glSharedDC, glSharedContext);
   wglGetProcAddress := TwglGetProcAddress(LibAddress(Lib, 'wglGetProcAddress'));
   LoadCommands;
-  if not Assigned(ChoosePixelFormat) then ChoosePixelFormat := TChoosePixelFormat(@GDIChoosePixelFormat);
-  if not Assigned(DescribePixelFormat) then DescribePixelFormat := TDescribePixelFormat(@GDIDescribePixelFormat);
-  if not Assigned(GetPixelFormat) then GetPixelFormat := TGetPixelFormat(@GDIGetPixelFormat);
-  if not Assigned(SetPixelFormat) then SetPixelFormat := TSetPixelFormat(@GDISetPixelFormat);
-  if not Assigned(SwapBuffers) then SwapBuffers := TSwapBuffers(@GDISwapBuffers);
 end;
 
 procedure WinFin;

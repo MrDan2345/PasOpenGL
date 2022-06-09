@@ -8,14 +8,14 @@
       <Unit>
         <Filename Value="HeaderGen.lpr"/>
         <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
-        <CursorPos X="38" Y="65"/>
+        <TopLine Value="700"/>
+        <CursorPos X="38" Y="710"/>
         <UsageCount Value="290"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="C:\lazarus\fpc\3.2.2\source\packages\fcl-web\src\base\fphttpclient.pp"/>
-        <EditorIndex Value="7"/>
+        <EditorIndex Value="8"/>
         <TopLine Value="1480"/>
         <CursorPos X="35" Y="1522"/>
         <UsageCount Value="144"/>
@@ -23,7 +23,7 @@
       </Unit>
       <Unit>
         <Filename Value="C:\Utils\Common\CommonUtils.pas"/>
-        <EditorIndex Value="5"/>
+        <EditorIndex Value="6"/>
         <TopLine Value="439"/>
         <CursorPos X="14" Y="479"/>
         <UsageCount Value="144"/>
@@ -31,7 +31,7 @@
       </Unit>
       <Unit>
         <Filename Value="C:\lazarus\fpc\3.2.2\source\rtl\inc\objpash.inc"/>
-        <EditorIndex Value="6"/>
+        <EditorIndex Value="7"/>
         <TopLine Value="194"/>
         <CursorPos X="23" Y="206"/>
         <UsageCount Value="144"/>
@@ -46,7 +46,7 @@
       </Unit>
       <Unit>
         <Filename Value="C:\lazarus\fpc\3.2.2\source\rtl\inc\systemh.inc"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="4"/>
         <TopLine Value="1325"/>
         <CursorPos X="11" Y="1336"/>
         <UsageCount Value="11"/>
@@ -54,7 +54,7 @@
       </Unit>
       <Unit>
         <Filename Value="C:\lazarus\fpc\3.2.2\source\rtl\objpas\sysutils\syshelph.inc"/>
-        <EditorIndex Value="1"/>
+        <EditorIndex Value="2"/>
         <TopLine Value="183"/>
         <CursorPos X="14" Y="193"/>
         <UsageCount Value="11"/>
@@ -62,7 +62,7 @@
       </Unit>
       <Unit>
         <Filename Value="C:\lazarus\fpc\3.2.2\source\rtl\objpas\sysutils\syshelp.inc"/>
-        <EditorIndex Value="2"/>
+        <EditorIndex Value="3"/>
         <TopLine Value="1497"/>
         <CursorPos X="3" Y="1503"/>
         <UsageCount Value="11"/>
@@ -70,31 +70,22 @@
       </Unit>
       <Unit>
         <Filename Value="PasOpenGL.template"/>
-        <EditorIndex Value="4"/>
-        <TopLine Value="64"/>
-        <CursorPos X="66" Y="76"/>
+        <EditorIndex Value="5"/>
+        <TopLine Value="187"/>
+        <CursorPos X="16" Y="199"/>
         <UsageCount Value="10"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="None"/>
       </Unit>
+      <Unit>
+        <Filename Value="..\PasOpenGL.pas"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="1"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit>
     </Units>
-    <JumpHistory HistoryIndex="23">
-      <Position>
-        <Filename Value="HeaderGen.lpr"/>
-        <Caret Line="37" Column="20" TopLine="35"/>
-      </Position>
-      <Position>
-        <Filename Value="HeaderGen.lpr"/>
-        <Caret Line="47" Column="17" TopLine="36"/>
-      </Position>
-      <Position>
-        <Filename Value="HeaderGen.lpr"/>
-        <Caret Line="155" Column="3" TopLine="144"/>
-      </Position>
-      <Position>
-        <Filename Value="HeaderGen.lpr"/>
-        <Caret Line="47" Column="17" TopLine="37"/>
-      </Position>
+    <JumpHistory HistoryIndex="29">
       <Position>
         <Filename Value="HeaderGen.lpr"/>
         <Caret Line="158" Column="13" TopLine="152"/>
@@ -174,6 +165,46 @@
       <Position>
         <Filename Value="HeaderGen.lpr"/>
         <Caret Line="838" Column="45" TopLine="821"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="63" Column="23" TopLine="53"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="423" Column="35" TopLine="419"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="654" Column="36" TopLine="640"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="63" Column="14" TopLine="52"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="434" Column="46" TopLine="422"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="63" Column="14" TopLine="53"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="829" Column="13" TopLine="813"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="832" Column="35" TopLine="827"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="710" Column="16" TopLine="688"/>
+      </Position>
+      <Position>
+        <Filename Value="HeaderGen.lpr"/>
+        <Caret Line="711" Column="34" TopLine="698"/>
       </Position>
     </JumpHistory>
     <RunParams>
