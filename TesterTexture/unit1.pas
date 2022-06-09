@@ -49,7 +49,7 @@ implementation
 
 procedure TForm1.Timer1Timer(Sender: TObject);
 begin
-  if TaskLoadTexture.IsStarted and TaskLoadTexture.IsComplete then
+  if TaskLoadTexture.IsComplete then
   begin
     Texture := TaskLoadTexture.TaskResult;
     TaskLoadTexture.Reset;
