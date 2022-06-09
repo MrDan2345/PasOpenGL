@@ -48,6 +48,12 @@ interface
   end;
 {$endif}
 
+{$if defined(WINDOWS)}
+var glSharedDC: HDC;
+{$endif}
+
+var glSharedContext: HGLRC;
+
 implementation
 
 {$ifdef CPU64}
@@ -158,50 +164,37 @@ begin
 end;
 
 {$if defined(WINDOWS)}
+var TmpWindow: HWND;
 procedure WinInit;
-  var TmpGLRC: HGLRC;
-  var TmpDC: HDC;
-  var TmpWindow: HWND;
-  procedure WindowCreate;
-    var pf: Integer;
-    var pfd: TPixelFormatDescriptor;
-  begin
-    TmpWindow := CreateWindowEx(
-      WS_EX_APPWINDOW or WS_EX_WINDOWEDGE,
-      PChar('STATIC'),
-      PChar('PasOpenGL Temporary'),
-      WS_OVERLAPPEDWINDOW or WS_CLIPSIBLINGS or WS_CLIPCHILDREN,
-      0, 0, 100, 100,
-      0, 0, hInstance,
-      nil
-    );
-    TmpDC := GetDC(TmpWindow);
-    {$push}
-    {$hints off}
-    FillChar(pfd, SizeOf(pfd), 0);
-    {$pop}
-    pfd.nSize := SizeOf(pfd);
-    pfd.nVersion := 1;
-    pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
-    pfd.iPixelType := PFD_TYPE_RGBA;
-    pfd.iLayerType := PFD_MAIN_PLANE;
-    pf := GDIChoosePixelFormat(TmpDC, @pfd);
-    GDISetPixelFormat(TmpDC, pf, @pfd);
-    TmpGLRC := wglCreateContext(TmpDC);
-    wglMakeCurrent(TmpDC, TmpGLRC);
-  end;
-  procedure WindowDestroy;
-  begin
-    wglMakeCurrent(TmpDC, 0);
-    wglDeleteContext(TmpGLRC);
-    ReleaseDC(TmpWindow, TmpDC);
-    DestroyWindow(TmpWindow);
-  end;
+  var pf: Integer;
+  var pfd: TPixelFormatDescriptor;
 begin
   wglCreateContext := TwglCreateContext(LibAddress(Lib, 'wglCreateContext'));
   wglDeleteContext := TwglDeleteContext(LibAddress(Lib, 'wglDeleteContext'));
   wglMakeCurrent := TwglMakeCurrent(LibAddress(Lib, 'wglMakeCurrent'));
-  WindowCreate;
+  TmpWindow := CreateWindowEx(
+    WS_EX_APPWINDOW or WS_EX_WINDOWEDGE,
+    PChar('STATIC'),
+    PChar('PasOpenGL Temporary'),
+    WS_OVERLAPPEDWINDOW or WS_CLIPSIBLINGS or WS_CLIPCHILDREN,
+    0, 0, 100, 100,
+    0, 0, hInstance,
+    nil
+  );
+  glSharedDC := GetDC(TmpWindow);
+  {$push}
+  {$hints off}
+  FillChar(pfd, SizeOf(pfd), 0);
+  {$pop}
+  pfd.nSize := SizeOf(pfd);
+  pfd.nVersion := 1;
+  pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
+  pfd.iPixelType := PFD_TYPE_RGBA;
+  pfd.iLayerType := PFD_MAIN_PLANE;
+  pf := GDIChoosePixelFormat(glSharedDC, @pfd);
+  GDISetPixelFormat(glSharedDC, pf, @pfd);
+  glSharedContext := wglCreateContext(glSharedDC);
+  wglMakeCurrent(glSharedDC, glSharedContext);
   wglGetProcAddress := TwglGetProcAddress(LibAddress(Lib, 'wglGetProcAddress'));
   LoadCommands;
   if not Assigned(ChoosePixelFormat) then ChoosePixelFormat := TChoosePixelFormat(@GDIChoosePixelFormat);
@@ -209,7 +202,14 @@ begin
   if not Assigned(GetPixelFormat) then GetPixelFormat := TGetPixelFormat(@GDIGetPixelFormat);
   if not Assigned(SetPixelFormat) then SetPixelFormat := TSetPixelFormat(@GDISetPixelFormat);
   if not Assigned(SwapBuffers) then SwapBuffers := TSwapBuffers(@GDISwapBuffers);
-  WindowDestroy;
+end;
+
+procedure WinFin;
+begin
+  wglMakeCurrent(glSharedDC, 0);
+  wglDeleteContext(glSharedContext);
+  ReleaseDC(TmpWindow, glSharedDC);
+  DestroyWindow(TmpWindow);
 end;
 {$endif}
 
@@ -223,6 +223,9 @@ end;
 
 procedure UnloadOpenGL;
 begin
+{$if defined(WINDOWS)}
+  WinFin;
+{$endif}
   if Lib <> 0 then LibClose(Lib);
   Lib := 0;
 end;

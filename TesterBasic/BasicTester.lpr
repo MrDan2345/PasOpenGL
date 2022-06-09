@@ -28,19 +28,19 @@ var IB: GLUint;
 
 
 procedure Initialize;
-  var Vertices: array[0..3] of TVertex;
-  var Indices: array[0..5] of Word;
+  const Vertices: array[0..3] of TVertex = (
+    (Pos: (-2, 2, 0); Color: (1, 0, 0, 1)),
+    (Pos: (2, 2, 0); Color: (0, 1, 0, 1)),
+    (Pos: (-2, -2, 0); Color: (0, 0, 1, 1)),
+    (Pos: (2, -2, 0); Color: (1, 1, 0, 1))
+  );
+  const Indices: array[0..5] of Word = (
+    0, 1, 2, 2, 1, 3
+  );
 begin
-  Vertices[0].Pos.SetValue(-2, 2, 0); Vertices[0].Color.SetValue(1, 0, 0, 1);
-  Vertices[1].Pos.SetValue(2, 2, 0); Vertices[1].Color.SetValue(0, 1, 0, 1);
-  Vertices[2].Pos.SetValue(-2, -2, 0); Vertices[2].Color.SetValue(0, 0, 1, 1);
-  Vertices[3].Pos.SetValue(2, -2, 0); Vertices[3].Color.SetValue(1, 1, 0, 1);
   glGenBuffers(1, @VB);
   glBindBuffer(GL_ARRAY_BUFFER, VB);
   glBufferData(GL_ARRAY_BUFFER, Sizeof(TVertex) * 4, @Vertices, GL_STATIC_DRAW);
-
-  Indices[0] := 0; Indices[1] := 1; Indices[2] := 2;
-  Indices[3] := 2; Indices[4] := 1; Indices[5] := 3;
   glGenBuffers(1, @IB);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IB);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, SizeOf(Word) * 6, @Indices, GL_STATIC_DRAW);
@@ -136,7 +136,7 @@ procedure CreateWindow(const W, H: Integer; const Caption: AnsiString = 'PureOGL
   var WndStyle: DWord;
 begin
   WndClassName := 'PureOGL';
-  FillChar(WndClass, SizeOf(TWndClassExA), 0);
+  UClear(WndClass, SizeOf(TWndClassExA));
   WndClass.cbSize := SizeOf(TWndClassExA);
   WndClass.hIconSm := LoadIcon(MainInstance, 'MAINICON');
   WndClass.hIcon := LoadIcon(MainInstance, 'MAINICON');
@@ -179,7 +179,7 @@ procedure CreateDevice;
   var R: TRect;
 begin
   DC := GetDC(WindowHandle);
-  FillChar(pfd, SizeOf(pfd), 0);
+  UClear(pfd, SizeOf(pfd));
   pfd.nSize := SizeOf(pfd);
   pfd.nVersion := 1;
   pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
@@ -192,7 +192,7 @@ begin
   SetPixelFormat(DC, pf, @pfd);
   Context := wglCreateContext(DC);
   wglMakeCurrent(DC, Context);
-  GetClientRect(WindowHandle, R);
+  GetClientRect(WindowHandle, @R);
   glViewport(0, 0, R.Right - R.Left, R.Bottom - R.Top);
   glClearColor(0.5, 0.5, 0.5, 1);
   glClearDepth(1);
@@ -213,7 +213,7 @@ procedure Loop;
   var msg: TMsg;
 begin
   AppRunning := True;
-  FillChar(msg, SizeOf(msg), 0);
+  UClear(msg, SizeOf(msg));
   while AppRunning
   and (msg.message <> WM_QUIT)
   and (msg.message <> WM_DESTROY)

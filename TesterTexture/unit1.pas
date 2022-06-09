@@ -27,7 +27,7 @@ type
     var Shader: TGLuint;
     var Texture: TGLuint;
     var UniformTex0: TGLint;
-    var TaskLoadTexture: specialize TUTask<TUImageDataShared>;
+    var TaskLoadTexture: specialize TUTask<TGLuint>;
     procedure Tick;
     procedure InitializeOpenGL;
     procedure FinalizeOpenGL;
@@ -35,7 +35,7 @@ type
     procedure Initialize;
     procedure Finalize;
     procedure ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
-    function TFLoadTexture(const Args: array of const): TUImageDataShared;
+    function TFLoadTexture(const Args: array of const): TGLuint;
   public
 
   end;
@@ -48,26 +48,10 @@ implementation
 {$R *.lfm}
 
 procedure TForm1.Timer1Timer(Sender: TObject);
-  var TextureFormat, TextureType: TGLenum;
 begin
   if TaskLoadTexture.IsStarted and TaskLoadTexture.IsComplete then
   begin
-    if TaskLoadTexture.TaskResult.IsValid then
-    begin
-      ImageFormatToGL(TaskLoadTexture.TaskResult.Ptr.Format, TextureFormat, TextureType);
-      glGenTextures(1, @Texture);
-      glBindTexture(GL_TEXTURE_2D, Texture);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGB,
-        TaskLoadTexture.TaskResult.Ptr.Width, TaskLoadTexture.TaskResult.Ptr.Height, 0,
-        TextureFormat, TextureType, TaskLoadTexture.TaskResult.Ptr.Data
-      );
-      glGenerateMipmap(GL_TEXTURE_2D);
-    end;
+    Texture := TaskLoadTexture.TaskResult;
     TaskLoadTexture.Reset;
   end;
   Tick;
@@ -144,7 +128,7 @@ begin
   //ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
   //ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
   ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
-  RenderContext := wglCreateContextAttribsARB(DeviceContext, 0, ContextAttribs.Data);
+  RenderContext := wglCreateContextAttribsARB(DeviceContext, glSharedContext, ContextAttribs.Data);
   if RenderContext = 0 then
   begin
     WriteLn(glGetError);
@@ -280,12 +264,30 @@ begin
   DataType := 0;
 end;
 
-function TForm1.TFLoadTexture(const Args: array of const): TUImageDataShared;
+function TForm1.TFLoadTexture(const Args: array of const): TGLuint;
   var f: String;
+  var Image: TUImageDataShared;
+  var TextureFormat, TextureType: TGLenum;
 begin
   if Length(Args) < 1 then Exit;
   f := AnsiString(Args[0].VAnsiString);
-  Result := ULoadImageData(f);
+  Image := ULoadImageData(f);
+  if not Image.IsValid then Exit(0);
+  wglMakeCurrent(glSharedDC, glSharedContext);
+  ImageFormatToGL(Image.Ptr.Format, TextureFormat, TextureType);
+  glGenTextures(1, @Result);
+  glBindTexture(GL_TEXTURE_2D, Result);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(
+    GL_TEXTURE_2D, 0, GL_RGB,
+    Image.Ptr.Width, Image.Ptr.Height, 0,
+    TextureFormat, TextureType, Image.Ptr.Data
+  );
+  glGenerateMipmap(GL_TEXTURE_2D);
+  glFinish();
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
