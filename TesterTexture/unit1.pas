@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, PasOpenGL,
-  CommonUtils, CommonMedia, Windows;
+  CommonUtils, MediaUtils, Windows;
 
 type
   TForm1 = class(TForm)
@@ -269,7 +269,7 @@ function TForm1.TFLoadTexture(const Args: array of const): TGLuint;
   var Image: TUImageDataShared;
   var TextureFormat, TextureType: TGLenum;
 begin
-  if Length(Args) < 1 then Exit;
+  if Length(Args) < 1 then Exit(0);
   f := AnsiString(Args[0].VAnsiString);
   Image := ULoadImageData(f);
   if not Image.IsValid then Exit(0);
