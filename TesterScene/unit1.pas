@@ -169,7 +169,19 @@ begin
 end;
 
 procedure TForm1.Initialize;
-  var ShaderSource: String;
+  function AttributeName(const Attribute: TUVertexAttribute): String;
+  begin
+    case Attribute.Semantic of
+      as_position: Result := 'position';
+      as_normal: Result := 'normal';
+      as_tangent: Result := 'tangent';
+      as_binormal: Result := 'binormal';
+      as_color: Result := 'color';
+      as_texcoord: Result := 'texcoord' + IntToStr(Attribute.SetNumber);
+      else Result := '';
+    end;
+  end;
+  var ShaderSource, ShaderInputs, ShaderOutputs, s: String;
   var Ptr: Pointer;
   var i: Integer;
   var Offset: Pointer;
@@ -207,7 +219,37 @@ begin
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     VertexShader := glCreateShader(GL_VERTEX_SHADER);
-    ShaderSource := UFileToStr('shader_vs.txt');
+    ShaderSource := '#version 430 core'#$D#$A;
+    ShaderInputs := '';
+    ShaderOutputs := '';
+    for i := 0 to High(Mesh.VertexDescritor) do
+    begin
+      s := AttributeName(Mesh.VertexDescritor[i]);
+      ShaderInputs += 'layout (location = ' + IntToStr(i) + ') in vec' +
+      IntToStr(Mesh.VertexDescritor[i].DataCount) + ' in_' + s + ';'#$D#$A;
+      if Mesh.VertexDescritor[i].Semantic <> as_position then
+      begin
+        ShaderOutputs += 'layout (location = ' + IntToStr(i) + ') out vec' +
+        IntToStr(Mesh.VertexDescritor[i].DataCount) + ' out_' + s + ';'#$D#$A;
+      end;
+    end;
+    ShaderSource += ShaderInputs + ShaderOutputs;
+    ShaderSource += 'uniform mat4x4 WVP;'#$D#$A;
+    ShaderSource += 'void main() {'#$D#$A;
+    for i := 0 to High(Mesh.VertexDescritor) do
+    begin
+      if Mesh.VertexDescritor[i].Semantic = as_position then
+      begin
+        ShaderSource += '  gl_Position = vec4(in_position, 1.0) * WVP;'#$D#$A;
+      end
+      else
+      begin
+        s := AttributeName(Mesh.VertexDescritor[i]);
+        ShaderSource += '  out_' + s + ' = in_' + s + ';'#$D#$A;
+      end;
+    end;
+    ShaderSource += '}'#$D#$A;
+    //UStrToFile('test_vs.txt', ShaderSource);
     Ptr := PAnsiChar(ShaderSource);
     glShaderSource(VertexShader, 1, @Ptr, nil);
     glCompileShader(VertexShader);
@@ -218,7 +260,20 @@ begin
       WriteLn(ErrorBuffer);
     end;
     PixelShader := glCreateShader(GL_FRAGMENT_SHADER);
-    ShaderSource := UFileToStr('shader_ps.txt');
+    ShaderSource := '#version 430 core'#$D#$A;
+    for i := 0 to High(Mesh.VertexDescritor) do
+    begin
+      if Mesh.VertexDescritor[i].Semantic = as_position then Continue;
+      s := AttributeName(Mesh.VertexDescritor[i]);
+      ShaderSource += 'layout (location = ' + IntToStr(i) + ') in vec' +
+      IntToStr(Mesh.VertexDescritor[i].DataCount) + ' in_' + s + ';'#$D#$A;
+    end;
+    ShaderSource += 'out vec4 out_color;'#$D#$A;
+    ShaderSource += 'uniform sampler2D tex0;'#$D#$A;
+    ShaderSource += 'void main() {'#$D#$A;
+    ShaderSource += '  out_color = texture(tex0, in_texcoord0);'#$D#$A;
+    ShaderSource += '}'#$D#$A;
+    //UStrToFile('test_ps.txt', ShaderSource);
     Ptr := PAnsiChar(ShaderSource);
     glShaderSource(PixelShader, 1, @Ptr, nil);
     glCompileShader(PixelShader);
@@ -254,6 +309,8 @@ begin
   glDeleteTextures(1, @Texture);
   glDeleteProgram(Shader);
   glDeleteBuffers(1, @VertexBuffer);
+  glDeleteBuffers(1, @IndexBuffer);
+  glDeleteVertexArrays(1, @VertexArray);
 end;
 
 procedure TForm1.ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
