@@ -10,6 +10,54 @@ uses
   CommonUtils, MediaUtils, Windows;
 
 type
+  TShader = class(TURefClass)
+  private
+    var _Shader: TGLuint;
+  public
+    property Shader: TGLuint read _Shader;
+    class function AutoShader(const VertexDescriptor: TUVertexDescriptor): TShader;
+    constructor Create(const vs, ps: String);
+    destructor Destroy; override;
+    procedure Use;
+    function UniformLocation(const UniformName: String): TGLint;
+  end;
+  TShaderShared = specialize TUSharedRef<TShader>;
+
+  TMesh = class (TURefClass)
+  public
+    type TSubset = class
+    public
+      var BufferIndex: Int32;
+      var VertexOffset: Int32;
+      var VertexCount: Int32;
+      var IndexOffset: Int32;
+      var IndexCount: Int32;
+    end;
+    type TSubsetList = array of TSubset;
+    type TMeshBuffer = record
+      VertexDescriptor: TUVertexDescriptor;
+      VertexArray: TGLuint;
+      VertexBuffer: TGLuint;
+      VertexSize: TGLuint;
+      VertexCount: TGluint;
+      IndexBuffer: TGLuint;
+      IndexSize: TGLuint;
+      IndexCount: TGLuint;
+      IndexFormat: TGLenum;
+    end;
+    type TMeshBufferList = array of TMeshBuffer;
+  private
+    var _Subsets: TSubsetList;
+    var _Buffers: TMeshBufferList;
+  public
+    property Subsets: TSubsetList read _Subsets;
+    property Buffers: TMeshBufferList read _Buffers;
+    constructor Create(const MeshData: TUSceneData.TMeshInterface);
+    destructor Destroy; override;
+    procedure DrawSubset(const Index: Int32);
+  end;
+  type TMeshShared = specialize TUSharedRef<TMesh>;
+
   TForm1 = class(TForm)
     Timer1: TTimer;
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -18,17 +66,11 @@ type
   private
     var RenderContext: HGLRC;
     var DeviceContext: HDC;
-    var VertexArray: TGLuint;
-    var VertexBuffer: TGLuint;
-    var IndexBuffer: TGLuint;
-    var VertexShader: TGLuint;
-    var PixelShader: TGLuint;
     var UniformWVP: TGLint;
-    var Shader: TGLuint;
+    var Shader: TShaderShared;
     var Texture: TGLuint;
     var UniformTex0: TGLint;
-    var IndexCount: Int32;
-    var IndexFormat: TGLenum;
+    var Meshes: array of TMeshShared;
     var TaskLoadTexture: specialize TUTask<TGLuint>;
     procedure Tick;
     procedure InitializeOpenGL;
@@ -39,7 +81,6 @@ type
     procedure ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
     function TFLoadTexture(const Args: array of const): TGLuint;
   public
-
   end;
 
 var
@@ -48,6 +89,245 @@ var
 implementation
 
 {$R *.lfm}
+
+class function TShader.AutoShader(const VertexDescriptor: TUVertexDescriptor): TShader;
+  function AttributeName(const Attribute: TUVertexAttribute): String;
+  begin
+    case Attribute.Semantic of
+      as_position: Result := 'position';
+      as_normal: Result := 'normal';
+      as_tangent: Result := 'tangent';
+      as_binormal: Result := 'binormal';
+      as_color: Result := 'color';
+      as_texcoord: Result := 'texcoord' + IntToStr(Attribute.SetNumber);
+      else Result := '';
+    end;
+  end;
+  var vs, ps, Inputs, Outputs, AttName, AttSize: String;
+  var i: Int32;
+begin
+  vs := '#version 430 core'#$D#$A;
+  Inputs := '';
+  Outputs := '';
+  for i := 0 to High(VertexDescriptor) do
+  begin
+    AttName := AttributeName(VertexDescriptor[i]);
+    AttSize := IntToStr(VertexDescriptor[i].DataCount);
+    Inputs += 'layout (location = ' + IntToStr(i) + ') in vec' + AttSize + ' in_' + AttName + ';'#$D#$A;
+    if VertexDescriptor[i].Semantic <> as_position then
+    begin
+      Outputs += 'layout (location = ' + IntToStr(i) + ') out vec' + AttSize + ' out_' + AttName + ';'#$D#$A;
+    end;
+  end;
+  vs += Inputs + Outputs;
+  vs += 'uniform mat4x4 WVP;'#$D#$A;
+  vs += 'void main() {'#$D#$A;
+  for i := 0 to High(VertexDescriptor) do
+  begin
+    if VertexDescriptor[i].Semantic = as_position then
+    begin
+      vs += '  gl_Position = vec4(in_position, 1.0) * WVP;'#$D#$A;
+    end
+    else
+    begin
+      AttName := AttributeName(VertexDescriptor[i]);
+      vs += '  out_' + AttName + ' = in_' + AttName + ';'#$D#$A;
+    end;
+  end;
+  vs += '}'#$D#$A;
+  ps := '#version 430 core'#$D#$A;
+  for i := 0 to High(VertexDescriptor) do
+  begin
+    if VertexDescriptor[i].Semantic = as_position then Continue;
+    AttName := AttributeName(VertexDescriptor[i]);
+    AttSize := IntToStr(VertexDescriptor[i].DataCount);
+    ps += 'layout (location = ' + IntToStr(i) + ') in vec' + AttSize + ' in_' + AttName + ';'#$D#$A;
+  end;
+  ps += 'out vec4 out_color;'#$D#$A;
+  ps += 'uniform sampler2D tex0;'#$D#$A;
+  ps += 'void main() {'#$D#$A;
+  ps += '  out_color = texture(tex0, in_texcoord0);'#$D#$A;
+  ps += '}'#$D#$A;
+  Result := TShader.Create(vs, ps);
+end;
+
+constructor TShader.Create(const vs, ps: String);
+  var VertexShader, PixelShader: TGLuint;
+  var Ptr: Pointer;
+  var i: Int32;
+  var ErrorBuffer: array[0..511] of AnsiChar;
+begin
+  VertexShader := glCreateShader(GL_VERTEX_SHADER);
+  Ptr := PAnsiChar(vs);
+  glShaderSource(VertexShader, 1, @Ptr, nil);
+  glCompileShader(VertexShader);
+  glGetShaderiv(VertexShader, GL_COMPILE_STATUS, @i);
+  if i = GL_FALSE then
+  begin
+    glGetShaderInfoLog(VertexShader, Length(ErrorBuffer), @i, @ErrorBuffer);
+    WriteLn(ErrorBuffer);
+  end;
+  PixelShader := glCreateShader(GL_FRAGMENT_SHADER);
+  Ptr := PAnsiChar(ps);
+  glShaderSource(PixelShader, 1, @Ptr, nil);
+  glCompileShader(PixelShader);
+  glGetShaderiv(PixelShader, GL_COMPILE_STATUS, @i);
+  if i = GL_FALSE then
+  begin
+    glGetShaderInfoLog(PixelShader, Length(ErrorBuffer), @i, @ErrorBuffer);
+    WriteLn(ErrorBuffer);
+  end;
+  _Shader := glCreateProgram();
+  glAttachShader(_Shader, VertexShader);
+  glAttachShader(_Shader, PixelShader);
+  glLinkProgram(_Shader);
+  glGetProgramiv(_Shader, GL_LINK_STATUS, @i);
+  if i = GL_FALSE then
+  begin
+    glGetProgramInfoLog(_Shader, Length(ErrorBuffer), @i, @ErrorBuffer);
+    WriteLn(ErrorBuffer);
+  end;
+  glDeleteShader(PixelShader);
+  glDeleteShader(VertexShader);
+end;
+
+destructor TShader.Destroy;
+begin
+  glDeleteProgram(_Shader);
+  inherited Destroy;
+end;
+
+procedure TShader.Use;
+begin
+  glUseProgram(_Shader);
+end;
+
+function TShader.UniformLocation(const UniformName: String): TGLint;
+begin
+  Result := glGetUniformLocation(_Shader, PGLchar(PAnsiChar(UniformName)));
+end;
+
+constructor TMesh.Create(const MeshData: TUSceneData.TMeshInterface);
+  var cb, IndexCount, VertexCount: Int32;
+  procedure FinalizeBuffer;
+  begin
+    if IndexCount < High(UInt16) then
+    begin
+      _Buffers[cb].IndexFormat := GL_UNSIGNED_SHORT;
+      _Buffers[cb].IndexSize := 2;
+    end
+    else
+    begin
+      _Buffers[cb].IndexFormat := GL_UNSIGNED_INT;
+      _Buffers[cb].IndexSize := 4;
+    end;
+    _Buffers[cb].VertexCount := VertexCount;
+    _Buffers[cb].IndexCount := IndexCount;
+  end;
+  var Subset: TSubset;
+  var vd: TUVertexDescriptor;
+  var AttribOffset, Buffer: Pointer;
+  var i, j, s: Int32;
+begin
+  cb := -1;
+  SetLength(_Subsets, Length(MeshData.Subsets));
+  for i := 0 to High(MeshData.Subsets) do
+  begin
+    vd := MeshData.Subsets[i].VertexDescriptor;
+    Subset := TSubset.Create;
+    _Subsets[i] :=  Subset;
+    if (cb = -1) or (not UCmpVertexDescriptors(_Buffers[cb].VertexDescriptor, vd)) then
+    begin
+      if cb > -1 then FinalizeBuffer;
+      VertexCount := 0;
+      IndexCount := 0;
+      cb := Length(_Buffers);
+      SetLength(_Buffers, Length(_Buffers) + 1);
+      _Buffers[cb].VertexDescriptor := vd;
+      _Buffers[cb].VertexSize := MeshData.Subsets[i].VertexSize;
+    end;
+    Subset.BufferIndex := cb;
+    Subset.VertexOffset := VertexCount;
+    Subset.VertexCount := MeshData.Subsets[i].VertexCount;
+    Subset.IndexOffset := IndexCount;
+    Subset.IndexCount := MeshData.Subsets[i].IndexCount;
+    VertexCount += Subset.VertexCount;
+    IndexCount += Subset.IndexCount;
+  end;
+  FinalizeBuffer;
+  for i := 0 to High(_Buffers) do
+  begin
+    glGenVertexArrays(1, @_Buffers[i].VertexArray);
+    glGenBuffers(1, @_Buffers[i].VertexBuffer);
+    glGenBuffers(1, @_Buffers[i].IndexBuffer);
+    glBindVertexArray(_Buffers[i].VertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, _Buffers[i].VertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, _Buffers[i].VertexCount * _Buffers[i].VertexSize, nil, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _Buffers[i].IndexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, _Buffers[i].IndexCount * _Buffers[i].IndexSize, nil, GL_STATIC_DRAW);
+    Buffer := glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
+    vd := _Buffers[i].VertexDescriptor;
+    AttribOffset := nil;
+    for j := 0 to High(vd) do
+    begin
+      glVertexAttribPointer(
+        j, vd[i].DataCount, GL_FLOAT, GL_FALSE,
+        _Buffers[i].VertexSize, AttribOffset
+      );
+      glEnableVertexAttribArray(j);
+      AttribOffset += vd[i].Size;
+    end;
+    for s := 0 to High(_Subsets) do
+    if _Subsets[s].BufferIndex = i then
+    begin
+      glBufferSubData(
+        GL_ARRAY_BUFFER,
+        _Subsets[s].VertexOffset * _Buffers[i].VertexSize,
+        MeshData.Subsets[i].VertexBufferSize,
+        MeshData.Subsets[i].VertexData
+      );
+      if _Buffers[i].IndexFormat = GL_UNSIGNED_INT then
+      for j := 0 to MeshData.Subsets[s].IndexCount - 1 do
+      begin
+        PUInt32Arr(Buffer)^[_Subsets[s].IndexOffset + j] := _Subsets[s].VertexOffset + MeshData.Subsets[s].Index[j];
+      end
+      else
+      for j := 0 to MeshData.Subsets[s].IndexCount - 1 do
+      begin
+        PUInt16Arr(Buffer)^[_Subsets[s].IndexOffset + j] := _Subsets[s].VertexOffset + MeshData.Subsets[s].Index[j];
+      end;
+    end;
+    glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+  end;
+  glBindVertexArray(0);
+end;
+
+destructor TMesh.Destroy;
+  var i: Int32;
+begin
+  specialize UArrClear<TSubset>(_Subsets);
+  for i := 0 to High(_Buffers) do
+  begin
+    glDeleteBuffers(1, @_Buffers[i].VertexBuffer);
+    glDeleteBuffers(1, @_Buffers[i].IndexBuffer);
+    glDeleteVertexArrays(1, @_Buffers[i].VertexArray);
+  end;
+  inherited Destroy;
+end;
+
+procedure TMesh.DrawSubset(const Index: Int32);
+  var Subset: TSubset;
+begin
+  Subset := _Subsets[Index];
+  glDrawRangeElements(
+    GL_TRIANGLES,
+    Subset.IndexOffset,
+    Subset.IndexOffset + Subset.IndexCount - 1,
+    Subset.IndexCount,
+    _Buffers[Subset.BufferIndex].IndexFormat,
+    nil
+  );
+end;
 
 procedure TForm1.Timer1Timer(Sender: TObject);
 begin
@@ -64,7 +344,7 @@ procedure TForm1.Tick;
   var W, V, P, WVP: TUMat;
 begin
   W := TUMat.RotationY(((GetTickCount mod 4000) / 4000) * UTwoPi);
-  v := TUMat.View(TUVec3.Make(0, 2, -2), TUVec3.Zero, TUVec3.Make(0, 1, 0));
+  v := TUMat.View(TUVec3.Make(0, 2, -3), TUVec3.Zero, TUVec3.Make(0, 1, 0));
   P := TUMat.Proj(UPi * 0.4, ClientWidth / ClientHeight, 0.1, 100);
   WVP := W * V * P;
 
@@ -74,8 +354,7 @@ begin
   glClearDepth(1);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
 
-  glBindVertexArray(VertexArray);
-  glUseProgram(Shader);
+  Shader.Ptr.Use;
   glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
   if (Texture > 0) then
   begin
@@ -83,8 +362,9 @@ begin
     glBindTexture(GL_TEXTURE_2D, Texture);
     glUniform1i(UniformTex0, 0);
   end;
-  glDrawElements(GL_TRIANGLES, IndexCount, IndexFormat, nil);
-  //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+  glBindVertexArray(Meshes[0].Ptr.Buffers[Meshes[0].Ptr.Subsets[0].BufferIndex].VertexArray);
+  Meshes[0].Ptr.DrawSubset(0);
 end;
 
 procedure TForm1.InitializeOpenGL;
@@ -181,122 +461,20 @@ procedure TForm1.Initialize;
       else Result := '';
     end;
   end;
-  var ShaderSource, ShaderInputs, ShaderOutputs, s: String;
-  var Ptr: Pointer;
   var i: Integer;
-  var Offset: Pointer;
-  var ErrorBuffer: array[0..511] of AnsiChar;
   var Scene: TUSceneDataDAE;
-  var Mesh: TUSceneData.TMeshSubsetInterface;
 begin
   Scene := TUSceneDataDAE.Create;
   try
     Scene.Load('../Assets/box.dae');
-    Mesh := Scene.MeshList[0].Subsets[0];
-    glGenVertexArrays(1, @VertexArray);
-    glGenBuffers(1, @VertexBuffer);
-    glGenBuffers(1, @IndexBuffer);
-    glBindVertexArray(VertexArray);
-    glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, Mesh.VertexCount * Mesh.VertexSize, Mesh.VertexData, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, Mesh.IndexCount * Mesh.IndexSize, Mesh.IndexData, GL_STATIC_DRAW);
-    IndexCount := Mesh.IndexCount;
-    case Mesh.IndexSize of
-      4: IndexFormat := GL_UNSIGNED_INT;
-      else IndexFormat := GL_UNSIGNED_SHORT;
-    end;
-    Offset := nil;
-    for i := 0 to High(Mesh.VertexDescritor) do
+    SetLength(Meshes, Length(Scene.MeshList));
+    for i := 0 to High(Meshes) do
     begin
-      glVertexAttribPointer(
-        i, Mesh.VertexDescritor[i].DataCount, GL_FLOAT, GL_FALSE,
-        Mesh.VertexSize, Offset
-      );
-      glEnableVertexAttribArray(i);
-      Offset += Mesh.VertexDescritor[i].Size;
+      Meshes[i] := TMesh.Create(Scene.MeshList[i]);
     end;
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-    VertexShader := glCreateShader(GL_VERTEX_SHADER);
-    ShaderSource := '#version 430 core'#$D#$A;
-    ShaderInputs := '';
-    ShaderOutputs := '';
-    for i := 0 to High(Mesh.VertexDescritor) do
-    begin
-      s := AttributeName(Mesh.VertexDescritor[i]);
-      ShaderInputs += 'layout (location = ' + IntToStr(i) + ') in vec' +
-      IntToStr(Mesh.VertexDescritor[i].DataCount) + ' in_' + s + ';'#$D#$A;
-      if Mesh.VertexDescritor[i].Semantic <> as_position then
-      begin
-        ShaderOutputs += 'layout (location = ' + IntToStr(i) + ') out vec' +
-        IntToStr(Mesh.VertexDescritor[i].DataCount) + ' out_' + s + ';'#$D#$A;
-      end;
-    end;
-    ShaderSource += ShaderInputs + ShaderOutputs;
-    ShaderSource += 'uniform mat4x4 WVP;'#$D#$A;
-    ShaderSource += 'void main() {'#$D#$A;
-    for i := 0 to High(Mesh.VertexDescritor) do
-    begin
-      if Mesh.VertexDescritor[i].Semantic = as_position then
-      begin
-        ShaderSource += '  gl_Position = vec4(in_position, 1.0) * WVP;'#$D#$A;
-      end
-      else
-      begin
-        s := AttributeName(Mesh.VertexDescritor[i]);
-        ShaderSource += '  out_' + s + ' = in_' + s + ';'#$D#$A;
-      end;
-    end;
-    ShaderSource += '}'#$D#$A;
-    //UStrToFile('test_vs.txt', ShaderSource);
-    Ptr := PAnsiChar(ShaderSource);
-    glShaderSource(VertexShader, 1, @Ptr, nil);
-    glCompileShader(VertexShader);
-    glGetShaderiv(VertexShader, GL_COMPILE_STATUS, @i);
-    if i = 0 then
-    begin
-      glGetShaderInfoLog(VertexShader, Length(ErrorBuffer), @i, @ErrorBuffer);
-      WriteLn(ErrorBuffer);
-    end;
-    PixelShader := glCreateShader(GL_FRAGMENT_SHADER);
-    ShaderSource := '#version 430 core'#$D#$A;
-    for i := 0 to High(Mesh.VertexDescritor) do
-    begin
-      if Mesh.VertexDescritor[i].Semantic = as_position then Continue;
-      s := AttributeName(Mesh.VertexDescritor[i]);
-      ShaderSource += 'layout (location = ' + IntToStr(i) + ') in vec' +
-      IntToStr(Mesh.VertexDescritor[i].DataCount) + ' in_' + s + ';'#$D#$A;
-    end;
-    ShaderSource += 'out vec4 out_color;'#$D#$A;
-    ShaderSource += 'uniform sampler2D tex0;'#$D#$A;
-    ShaderSource += 'void main() {'#$D#$A;
-    ShaderSource += '  out_color = texture(tex0, in_texcoord0);'#$D#$A;
-    ShaderSource += '}'#$D#$A;
-    //UStrToFile('test_ps.txt', ShaderSource);
-    Ptr := PAnsiChar(ShaderSource);
-    glShaderSource(PixelShader, 1, @Ptr, nil);
-    glCompileShader(PixelShader);
-    glGetShaderiv(PixelShader, GL_COMPILE_STATUS, @i);
-    if i = 0 then
-    begin
-      glGetShaderInfoLog(PixelShader, Length(ErrorBuffer), @i, @ErrorBuffer);
-      WriteLn(ErrorBuffer);
-    end;
-    Shader := glCreateProgram();
-    glAttachShader(Shader, VertexShader);
-    glAttachShader(Shader, PixelShader);
-    glLinkProgram(Shader);
-    glGetProgramiv(Shader, GL_LINK_STATUS, @i);
-    if i = 0 then
-    begin
-      glGetProgramInfoLog(Shader, Length(ErrorBuffer), @i, @ErrorBuffer);
-      WriteLn(ErrorBuffer);
-    end;
-    glDeleteShader(PixelShader);
-    glDeleteShader(VertexShader);
-    UniformWVP := glGetUniformLocation(Shader, PGLchar(PAnsiChar('WVP')));
-    UniformTex0 := glGetUniformLocation(Shader, PGLchar(PAnsiChar('tex0')));
+    Shader := TShader.AutoShader(Meshes[0].Ptr.Buffers[0].VertexDescriptor);
+    UniformWVP := Shader.Ptr.UniformLocation('WVP');
+    UniformTex0 := Shader.Ptr.UniformLocation('tex0');
   finally
     FreeAndNil(Scene);
   end;
@@ -306,11 +484,9 @@ end;
 
 procedure TForm1.Finalize;
 begin
+  Meshes := nil;
   glDeleteTextures(1, @Texture);
-  glDeleteProgram(Shader);
-  glDeleteBuffers(1, @VertexBuffer);
-  glDeleteBuffers(1, @IndexBuffer);
-  glDeleteVertexArrays(1, @VertexArray);
+  Shader := nil;
 end;
 
 procedure TForm1.ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
