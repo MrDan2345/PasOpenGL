@@ -283,18 +283,22 @@ begin
       glBufferSubData(
         GL_ARRAY_BUFFER,
         _Subsets[s].VertexOffset * _Buffers[i].VertexSize,
-        MeshData.Subsets[i].VertexBufferSize,
-        MeshData.Subsets[i].VertexData
+        MeshData.Subsets[s].VertexBufferSize,
+        MeshData.Subsets[s].VertexData
       );
       if _Buffers[i].IndexFormat = GL_UNSIGNED_INT then
       for j := 0 to MeshData.Subsets[s].IndexCount - 1 do
       begin
-        PUInt32Arr(Buffer)^[_Subsets[s].IndexOffset + j] := _Subsets[s].VertexOffset + MeshData.Subsets[s].Index[j];
+        PUInt32Arr(Buffer)^[_Subsets[s].IndexOffset + j] := (
+          _Subsets[s].VertexOffset + MeshData.Subsets[s].Index[j]
+        );
       end
       else
       for j := 0 to MeshData.Subsets[s].IndexCount - 1 do
       begin
-        PUInt16Arr(Buffer)^[_Subsets[s].IndexOffset + j] := _Subsets[s].VertexOffset + MeshData.Subsets[s].Index[j];
+        PUInt16Arr(Buffer)^[_Subsets[s].IndexOffset + j] := (
+          _Subsets[s].VertexOffset + MeshData.Subsets[s].Index[j]
+        );
       end;
     end;
     glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
@@ -317,15 +321,17 @@ end;
 
 procedure TMesh.DrawSubset(const Index: Int32);
   var Subset: TSubset;
+  var IndexOffset: PtrUInt;
 begin
   Subset := _Subsets[Index];
+  IndexOffset := Subset.IndexOffset * _Buffers[Subset.BufferIndex].IndexSize;
   glDrawRangeElements(
     GL_TRIANGLES,
-    Subset.IndexOffset,
-    Subset.IndexOffset + Subset.IndexCount - 1,
+    Subset.VertexOffset,
+    Subset.VertexOffset + Subset.VertexCount - 1,
     Subset.IndexCount,
     _Buffers[Subset.BufferIndex].IndexFormat,
-    nil
+    UIntToPtr(IndexOffset)
   );
 end;
 
@@ -342,6 +348,8 @@ end;
 
 procedure TForm1.Tick;
   var W, V, P, WVP: TUMat;
+  var CurBuffer, NewBuffer: TGLuint;
+  var i, j: Int32;
 begin
   W := TUMat.RotationY(((GetTickCount mod 4000) / 4000) * UTwoPi);
   v := TUMat.View(TUVec3.Make(0, 2, -3), TUVec3.Zero, TUVec3.Make(0, 1, 0));
@@ -363,8 +371,20 @@ begin
     glUniform1i(UniformTex0, 0);
   end;
 
-  glBindVertexArray(Meshes[0].Ptr.Buffers[Meshes[0].Ptr.Subsets[0].BufferIndex].VertexArray);
-  Meshes[0].Ptr.DrawSubset(0);
+  CurBuffer := $ffffffff;
+  for i := 0 to High(Meshes) do
+  begin
+    for j := 0 to High(Meshes[i].Ptr.Subsets) do
+    begin
+      NewBuffer := Meshes[i].Ptr.Buffers[Meshes[i].Ptr.Subsets[j].BufferIndex].VertexArray;
+      if NewBuffer <> CurBuffer then
+      begin
+        CurBuffer := NewBuffer;
+        glBindVertexArray(CurBuffer);
+      end;
+      Meshes[i].Ptr.DrawSubset(j);
+    end;
+  end;
 end;
 
 procedure TForm1.InitializeOpenGL;
@@ -449,24 +469,12 @@ begin
 end;
 
 procedure TForm1.Initialize;
-  function AttributeName(const Attribute: TUVertexAttribute): String;
-  begin
-    case Attribute.Semantic of
-      as_position: Result := 'position';
-      as_normal: Result := 'normal';
-      as_tangent: Result := 'tangent';
-      as_binormal: Result := 'binormal';
-      as_color: Result := 'color';
-      as_texcoord: Result := 'texcoord' + IntToStr(Attribute.SetNumber);
-      else Result := '';
-    end;
-  end;
   var i: Integer;
   var Scene: TUSceneDataDAE;
 begin
   Scene := TUSceneDataDAE.Create;
   try
-    Scene.Load('../Assets/box.dae');
+    Scene.Load('../Assets/siren/siren.dae');
     SetLength(Meshes, Length(Scene.MeshList));
     for i := 0 to High(Meshes) do
     begin
