@@ -128,6 +128,11 @@ begin
     begin
       vs += '  gl_Position = vec4(in_position, 1.0) * WVP;'#$D#$A;
     end
+    else if VertexDescriptor[i].Semantic = as_texcoord then
+    begin
+      AttName := AttributeName(VertexDescriptor[i]);
+      vs += '  out_' + AttName + ' = vec2(in_' + AttName + '.x, ' + '1-in_' + AttName + '.y);'#$D#$A;
+    end
     else
     begin
       AttName := AttributeName(VertexDescriptor[i]);
@@ -146,7 +151,7 @@ begin
   ps += 'out vec4 out_color;'#$D#$A;
   ps += 'uniform sampler2D tex0;'#$D#$A;
   ps += 'void main() {'#$D#$A;
-  ps += '  out_color = texture(tex0, in_texcoord0);'#$D#$A;
+  ps += '  out_color = texture(tex0, in_texcoord0.xy);'#$D#$A;
   ps += '}'#$D#$A;
   Result := TShader.Create(vs, ps);
 end;
@@ -352,8 +357,8 @@ procedure TForm1.Tick;
   var i, j: Int32;
 begin
   W := TUMat.RotationY(((GetTickCount mod 4000) / 4000) * UTwoPi);
-  v := TUMat.View(TUVec3.Make(0, 2, -3), TUVec3.Zero, TUVec3.Make(0, 1, 0));
-  P := TUMat.Proj(UPi * 0.4, ClientWidth / ClientHeight, 0.1, 100);
+  v := TUMat.View(TUVec3.Make(0, 1.5, -2), TUVec3.Make(0, 1, 0), TUVec3.Make(0, 1, 0));
+  P := TUMat.Proj(UPi * 0.3, ClientWidth / ClientHeight, 0.1, 100);
   WVP := W * V * P;
 
   glViewport(0, 0, ClientWidth, ClientHeight);
@@ -385,6 +390,7 @@ begin
       Meshes[i].Ptr.DrawSubset(j);
     end;
   end;
+  glBindVertexArray(0);
 end;
 
 procedure TForm1.InitializeOpenGL;
@@ -487,7 +493,7 @@ begin
     FreeAndNil(Scene);
   end;
   Texture := 0;
-  TaskLoadTexture := TaskLoadTexture.StartTask(@TFLoadTexture, ['../Assets/crate_c.png']);
+  TaskLoadTexture := TaskLoadTexture.StartTask(@TFLoadTexture, ['../Assets/siren/siren_body_c.png']);
 end;
 
 procedure TForm1.Finalize;
