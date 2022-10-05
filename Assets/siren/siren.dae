@@ -82,16 +82,16 @@
   </library_lights>
   <library_images>
     <image id="SirenBody_Bm_png" name="SirenBody_Bm_png">
-      <init_from>SirenBody_Bm.png</init_from>
+      <init_from>siren_body_c.png</init_from>
     </image>
     <image id="Mouth_png" name="Mouth_png">
       <init_from>Mouth.png</init_from>
     </image>
     <image id="SirenHands_Dif_png" name="SirenHands_Dif_png">
-      <init_from>SirenHands_Dif.png</init_from>
+      <init_from>siren_hands_c.png</init_from>
     </image>
     <image id="SirenHead_Bm_png" name="SirenHead_Bm_png">
-      <init_from>SirenHead_Bm.png</init_from>
+      <init_from>siren_head_c.png</init_from>
     </image>
   </library_images>
   <library_effects>

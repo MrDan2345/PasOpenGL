@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, PasOpenGL,
-  CommonUtils, MediaUtils, Windows;
+  CommonUtils, MediaUtils, Windows, fgl;
 
 type
   TShader = class(TURefClass)
@@ -58,6 +58,16 @@ type
   end;
   type TMeshShared = specialize TUSharedRef<TMesh>;
 
+  TTexture = class (TURefClass)
+  private
+    var _Handle: TGLuint;
+  public
+    property Handle: TGLuint read _Handle;
+    constructor Create(const ImageData: TUSceneData.TImageInterface);
+    destructor Destroy; override;
+  end;
+  TTextureShared = specialize TUSharedRef<TTexture>;
+
   TForm1 = class(TForm)
     Timer1: TTimer;
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -71,6 +81,7 @@ type
     var Texture: TGLuint;
     var UniformTex0: TGLint;
     var Meshes: array of TMeshShared;
+    var Textures: array of TTextureShared;
     var TaskLoadTexture: specialize TUTask<TGLuint>;
     procedure Tick;
     procedure InitializeOpenGL;
@@ -340,6 +351,38 @@ begin
   );
 end;
 
+constructor TTexture.Create(const ImageData: TUSceneData.TImageInterface);
+  var Image: TUImageDataShared;
+  var TextureFormat, TextureType: TGLenum;
+begin
+  Image := ULoadImageData('../Assets/siren/' + ImageData.FileName);
+  if not Image.IsValid then
+  begin
+    _Handle := 0;
+    Exit;
+  end;
+  Form1.ImageFormatToGL(Image.Ptr.Format, TextureFormat, TextureType);
+  glGenTextures(1, @_Handle);
+  glBindTexture(GL_TEXTURE_2D, _Handle);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(
+    GL_TEXTURE_2D, 0, GL_RGB,
+    Image.Ptr.Width, Image.Ptr.Height, 0,
+    TextureFormat, TextureType, Image.Ptr.Data
+  );
+  glGenerateMipmap(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, 0);
+end;
+
+destructor TTexture.Destroy;
+begin
+  if _Handle > 0 then glDeleteTextures(1, @_Handle);
+  inherited Destroy;
+end;
+
 procedure TForm1.Timer1Timer(Sender: TObject);
 begin
   if TaskLoadTexture.IsComplete then
@@ -369,18 +412,24 @@ begin
 
   Shader.Ptr.Use;
   glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
-  if (Texture > 0) then
+  {if (Texture > 0) then
   begin
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, Texture);
     glUniform1i(UniformTex0, 0);
   end;
-
+  }
   CurBuffer := $ffffffff;
   for i := 0 to High(Meshes) do
   begin
     for j := 0 to High(Meshes[i].Ptr.Subsets) do
     begin
+      if j < Length(Textures) then
+      begin
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, Textures[j].Ptr.Handle);
+        glUniform1i(UniformTex0, 0);
+      end;
       NewBuffer := Meshes[i].Ptr.Buffers[Meshes[i].Ptr.Subsets[j].BufferIndex].VertexArray;
       if NewBuffer <> CurBuffer then
       begin
@@ -477,14 +526,23 @@ end;
 procedure TForm1.Initialize;
   var i: Integer;
   var Scene: TUSceneDataDAE;
+  var TextureRemap: specialize TUMap<Pointer, TTextureShared>;
+  var MeshRemap: specialize TUMap<Pointer, TMeshShared>;
 begin
   Scene := TUSceneDataDAE.Create;
   try
     Scene.Load('../Assets/siren/siren.dae');
+    SetLength(Textures, Length(Scene.ImageList));
+    for i := 0 to High(Textures) do
+    begin
+      Textures[i] := TTexture.Create(Scene.ImageList[i]);
+      TextureRemap.Add(Scene.ImageList[i], Textures[i]);
+    end;
     SetLength(Meshes, Length(Scene.MeshList));
     for i := 0 to High(Meshes) do
     begin
       Meshes[i] := TMesh.Create(Scene.MeshList[i]);
+      MeshRemap.Add(Scene.MeshList[i], Meshes[i]);
     end;
     Shader := TShader.AutoShader(Meshes[0].Ptr.Buffers[0].VertexDescriptor);
     UniformWVP := Shader.Ptr.UniformLocation('WVP');
