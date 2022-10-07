@@ -12,9 +12,9 @@ uses
 type
   TShader = class(TURefClass)
   private
-    var _Shader: TGLuint;
+    var _Handle: TGLuint;
   public
-    property Shader: TGLuint read _Shader;
+    property Handle: TGLuint read _Handle;
     class function AutoShader(const VertexDescriptor: TUVertexDescriptor): TShader;
     constructor Create(const vs, ps: String);
     destructor Destroy; override;
@@ -252,14 +252,14 @@ begin
     glGetShaderInfoLog(PixelShader, Length(ErrorBuffer), @i, @ErrorBuffer);
     WriteLn(ErrorBuffer);
   end;
-  _Shader := glCreateProgram();
-  glAttachShader(_Shader, VertexShader);
-  glAttachShader(_Shader, PixelShader);
-  glLinkProgram(_Shader);
-  glGetProgramiv(_Shader, GL_LINK_STATUS, @i);
+  _Handle := glCreateProgram();
+  glAttachShader(_Handle, VertexShader);
+  glAttachShader(_Handle, PixelShader);
+  glLinkProgram(_Handle);
+  glGetProgramiv(_Handle, GL_LINK_STATUS, @i);
   if i = GL_FALSE then
   begin
-    glGetProgramInfoLog(_Shader, Length(ErrorBuffer), @i, @ErrorBuffer);
+    glGetProgramInfoLog(_Handle, Length(ErrorBuffer), @i, @ErrorBuffer);
     WriteLn(ErrorBuffer);
   end;
   glDeleteShader(PixelShader);
@@ -268,18 +268,18 @@ end;
 
 destructor TShader.Destroy;
 begin
-  glDeleteProgram(_Shader);
+  glDeleteProgram(_Handle);
   inherited Destroy;
 end;
 
 procedure TShader.Use;
 begin
-  glUseProgram(_Shader);
+  glUseProgram(_Handle);
 end;
 
 function TShader.UniformLocation(const UniformName: String): TGLint;
 begin
-  Result := glGetUniformLocation(_Shader, PGLchar(PAnsiChar(UniformName)));
+  Result := glGetUniformLocation(_Handle, PGLchar(PAnsiChar(UniformName)));
 end;
 
 constructor TMesh.Create(const MeshData: TUSceneData.TMeshInterface);
