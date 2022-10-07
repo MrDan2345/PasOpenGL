@@ -69,6 +69,8 @@ type
   type TTextureShared = specialize TUSharedRef<TTexture>;
 
   TMaterial = class (TURefClass)
+  public
+    type TMaterialList = array of TMaterial;
   private
     var _Texture: TTextureShared;
   public
@@ -77,6 +79,49 @@ type
     destructor Destroy; override;
   end;
   type TMaterialShared = specialize TUSharedRef<TMaterial>;
+
+  type TNode = class (TURefClass)
+  public
+    type TNodeList = array of TNode;
+    type TAttachment = class
+    end;
+    type TAttachmentMesh = class (TAttachment)
+    private
+      _Node: TNode;
+      var _Mesh: TMesh;
+      var _Materials: TMaterial.TMaterialList;
+      procedure SetNode(const Value: TNode);
+    public
+      property Node: TNode read _Node write SetNode;
+      property Mesh: TMesh read _Mesh;
+      property Materials: TMaterial.TMaterialList read _Materials;
+      constructor Create(const AttachData: TUSceneData.TAttachmentMesh);
+    end;
+    type TAttachmentList = array of TAttachment;
+  private
+    var _Name: String;
+    var _Parent: TNode;
+    var _Children: TNodeList;
+    var _Attachments: TAttachmentList;
+    var _Transform: TUMat;
+    procedure ChildAdd(const Child: TNode); inline;
+    procedure ChildRemove(const Child: TNode); inline;
+    procedure AttachAdd(const Attach: TAttachment);
+    procedure AttachRemove(const Attach: TAttachment);
+    procedure SetParent(const Value: TNode);
+  public
+    property Name: String read _Name;
+    property Parent: TNode read _Parent write SetParent;
+    property Children: TNodeList read _Children;
+    property Attachments: TAttachmentList read _Attachments;
+    property Transform: TUMat read _Transform write _Transform;
+    constructor Create(
+      const AParent: TNode;
+      const NodeData: TUSceneData.TNodeInterface
+    );
+    destructor Destroy; override;
+  end;
+  type TNodeShared = specialize TUSharedRef<TNode>;
 
   TForm1 = class(TForm)
     Timer1: TTimer;
@@ -92,9 +137,11 @@ type
     var Meshes: array of TMeshShared;
     var Textures: array of TTextureShared;
     var Materials: array of TMaterialShared;
+    var RootNode: TNodeShared;
     var TextureRemap: specialize TUMap<Pointer, TTextureShared>;
     var MeshRemap: specialize TUMap<Pointer, TMeshShared>;
     var MaterialRemap: specialize TUMap<Pointer, TMaterialShared>;
+    var NodeRemap: specialize TUMap<Pointer, TNode>;
     procedure Tick;
     procedure InitializeOpenGL;
     procedure FinalizeOpenGL;
@@ -263,7 +310,7 @@ begin
   begin
     vd := MeshData.Subsets[i].VertexDescriptor;
     Subset := TSubset.Create;
-    _Subsets[i] :=  Subset;
+    _Subsets[i] := Subset;
     if (cb = -1) or (not UCmpVertexDescriptors(_Buffers[cb].VertexDescriptor, vd)) then
     begin
       if cb > -1 then FinalizeBuffer;
@@ -417,6 +464,97 @@ begin
   inherited Destroy;
 end;
 
+procedure TNode.TAttachmentMesh.SetNode(const Value: TNode);
+begin
+  if _Node = Value then Exit;
+  if Assigned(_Node) then _Node.AttachRemove(Self);
+  _Node := Value;
+  if Assigned(_Node) then _Node.AttachAdd(Self);
+end;
+
+constructor TNode.TAttachmentMesh.Create(
+  const AttachData: TUSceneData.TAttachmentMesh
+);
+  var i: Int32;
+begin
+  _Mesh := Form1.MeshRemap.FindValueByKey(AttachData.Mesh).Ptr;
+  SetLength(_Materials, Length(AttachData.MaterialBindings));
+  for i := 0 to High(_Materials) do
+  begin
+    if Assigned(AttachData.MaterialBindings[i].BaseMaterial) then
+    begin
+      _Materials[i] := Form1.MaterialRemap.FindValueByKey(
+        AttachData.MaterialBindings[i].BaseMaterial
+      ).Ptr;
+    end
+    else
+    begin
+      _Materials[i] := nil;
+    end;
+  end;
+end;
+
+procedure TNode.ChildAdd(const Child: TNode);
+begin
+  specialize UArrAppend<TNode>(_Children, Child);
+end;
+
+procedure TNode.ChildRemove(const Child: TNode);
+begin
+  specialize UArrRemove<TNode>(_Children, Child);
+end;
+
+procedure TNode.AttachAdd(const Attach: TAttachment);
+begin
+  specialize UArrAppend<TAttachment>(_Attachments, Attach);
+end;
+
+procedure TNode.AttachRemove(const Attach: TAttachment);
+begin
+  specialize UArrRemove<TAttachment>(_Attachments, Attach);
+end;
+
+procedure TNode.SetParent(const Value: TNode);
+begin
+  if _Parent = Value then Exit;
+  if Assigned(_Parent) then _Parent.ChildRemove(Self);
+  _Parent := Value;
+  if Assigned(_Parent) then _Parent.ChildAdd(Self);
+end;
+
+constructor TNode.Create(
+  const AParent: TNode;
+  const NodeData: TUSceneData.TNodeInterface
+);
+  var i: Int32;
+  var AttachMesh: TAttachmentMesh;
+begin
+  _Name := NodeData.Name;
+  Parent := AParent;
+  _Transform := NodeData.Transform;
+  for i := 0 to High(NodeData.Attachments) do
+  begin
+    if NodeData.Attachments[i] is TUSceneData.TAttachmentMesh then
+    begin
+      AttachMesh := TAttachmentMesh.Create(
+        TUSceneData.TAttachmentMesh(NodeData.Attachments[i])
+      );
+      AttachMesh.Node := Self;
+    end;
+  end;
+  Form1.NodeRemap.Add(NodeData, Self);
+  for i := 0 to High(NodeData.Children) do
+  begin
+    TNode.Create(Self, NodeData.Children[i]);
+  end;
+end;
+
+destructor TNode.Destroy;
+begin
+  specialize UArrClear<TNode>(_Children);
+  inherited Destroy;
+end;
+
 procedure TForm1.Timer1Timer(Sender: TObject);
 begin
   Tick;
@@ -425,8 +563,48 @@ end;
 
 procedure TForm1.Tick;
   var W, V, P, WVP: TUMat;
-  var CurBuffer, NewBuffer: TGLuint;
-  var i, j: Int32;
+  procedure DrawNode(const Node: TNode);
+    var Attach: TNode.TAttachment;
+    var MeshAttach: TNode.TAttachmentMesh;
+    var CurBuffer, NewBuffer, CurTexture, NewTexture: TGLuint;
+    var Subset: TMesh.TSubset;
+    var Xf: TUMat;
+    var i: Int32;
+  begin
+    for Attach in Node.Attachments do
+    if Attach is TNode.TAttachmentMesh then
+    begin
+      MeshAttach := TNode.TAttachmentMesh(Attach);
+      Xf := MeshAttach.Node.Transform;
+      WVP := Xf * W * V * P;
+      glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
+      CurBuffer := 0;
+      CurTexture := 0;
+      for i := 0 to High(MeshAttach.Mesh.Subsets) do
+      begin
+        Subset := MeshAttach.Mesh.Subsets[i];
+        NewBuffer := MeshAttach.Mesh.Buffers[Subset.BufferIndex].VertexArray;
+        if NewBuffer <> CurBuffer then
+        begin
+          CurBuffer := NewBuffer;
+          glBindVertexArray(CurBuffer);
+        end;
+        NewTexture := MeshAttach.Materials[i].Texture.Ptr.Handle;
+        if NewTexture <> CurTexture then
+        begin
+          CurTexture := NewTexture;
+          glActiveTexture(GL_TEXTURE0);
+          glBindTexture(GL_TEXTURE_2D, CurTexture);
+          glUniform1i(UniformTex0, 0);
+        end;
+        MeshAttach.Mesh.DrawSubset(i);
+      end;
+    end;
+    for i := 0 to High(Node.Children) do
+    begin
+      DrawNode(Node.Children[i]);
+    end;
+  end;
 begin
   W := TUMat.RotationY(((GetTickCount mod 4000) / 4000) * UTwoPi);
   v := TUMat.View(TUVec3.Make(0, 1.5, -2), TUVec3.Make(0, 1, 0), TUVec3.Make(0, 1, 0));
@@ -440,26 +618,9 @@ begin
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
 
   Shader.Ptr.Use;
-  glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
-  CurBuffer := $ffffffff;
-  for i := 0 to High(Meshes) do
+  if RootNode.IsValid then
   begin
-    for j := 0 to High(Meshes[i].Ptr.Subsets) do
-    begin
-      if j < Length(Textures) then
-      begin
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, Textures[j].Ptr.Handle);
-        glUniform1i(UniformTex0, 0);
-      end;
-      NewBuffer := Meshes[i].Ptr.Buffers[Meshes[i].Ptr.Subsets[j].BufferIndex].VertexArray;
-      if NewBuffer <> CurBuffer then
-      begin
-        CurBuffer := NewBuffer;
-        glBindVertexArray(CurBuffer);
-      end;
-      Meshes[i].Ptr.DrawSubset(j);
-    end;
+    DrawNode(RootNode.Ptr);
   end;
   glBindVertexArray(0);
 end;
@@ -598,6 +759,7 @@ begin
       Materials[i] := TMaterial.Create(Scene.MaterialList[i]);
       MaterialRemap.Add(Scene.MaterialList[i], Materials[i]);
     end;
+    RootNode := TNode.Create(nil, Scene.RootNode);
     Shader := TShader.AutoShader(Meshes[0].Ptr.Buffers[0].VertexDescriptor);
     UniformWVP := Shader.Ptr.UniformLocation('WVP');
     UniformTex0 := Shader.Ptr.UniformLocation('tex0');
