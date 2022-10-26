@@ -58,6 +58,13 @@ type
   end;
   type TMeshShared = specialize TUSharedRef<TMesh>;
 
+  TSkin = class (TURefClass)
+  public
+    constructor Create(const SkinData: TUSceneData.TSkinInterface);
+    destructor Destroy; override;
+  end;
+  type TSkinShared = specialize TUSharedRef<TSkin>;
+
   TTexture = class (TURefClass)
   private
     var _Handle: TGLuint;
@@ -87,7 +94,7 @@ type
     end;
     type TAttachmentMesh = class (TAttachment)
     private
-      _Node: TNode;
+      var _Node: TNode;
       var _Mesh: TMesh;
       var _Materials: TMaterial.TMaterialList;
       procedure SetNode(const Value: TNode);
@@ -135,11 +142,13 @@ type
     var Shader: TShaderShared;
     var UniformTex0: TGLint;
     var Meshes: array of TMeshShared;
+    var Skins: array of TSkinShared;
     var Textures: array of TTextureShared;
     var Materials: array of TMaterialShared;
     var RootNode: TNodeShared;
     var TextureRemap: specialize TUMap<Pointer, TTextureShared>;
     var MeshRemap: specialize TUMap<Pointer, TMeshShared>;
+    var SkinRemap: specialize TUMap<Pointer, TSkinShared>;
     var MaterialRemap: specialize TUMap<Pointer, TMaterialShared>;
     var NodeRemap: specialize TUMap<Pointer, TNode>;
     procedure Tick;
@@ -408,6 +417,16 @@ begin
     _Buffers[Subset.BufferIndex].IndexFormat,
     UIntToPtr(IndexOffset)
   );
+end;
+
+constructor TSkin.Create(const SkinData: TUSceneData.TSkinInterface);
+begin
+
+end;
+
+destructor TSkin.Destroy;
+begin
+  inherited Destroy;
 end;
 
 constructor TTexture.Create(const ImageData: TUSceneData.TImageInterface);
@@ -713,8 +732,10 @@ end;
 
 procedure TForm1.Finalize;
 begin
+  Skins := nil;
   Meshes := nil;
   Shader := nil;
+  Textures := nil;
 end;
 
 procedure TForm1.ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
@@ -752,6 +773,12 @@ begin
     begin
       Meshes[i] := TMesh.Create(Scene.MeshList[i]);
       MeshRemap.Add(Scene.MeshList[i], Meshes[i]);
+    end;
+    SetLength(Skins, Length(Scene.SkinList));
+    for i := 0 to High(Skins) do
+    begin
+      Skins[i] := TSkin.Create(Scene.SkinList[i]);
+      SkinRemap.Add(Scene.SkinList[i], Skins[i]);
     end;
     SetLength(Materials, Length(Scene.MaterialList));
     for i := 0 to High(Materials) do
