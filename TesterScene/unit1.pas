@@ -60,6 +60,26 @@ type
 
   TSkin = class (TURefClass)
   public
+    type TSubset = class
+    public
+      var BufferIndex: Int32;
+      var VertexOffset: Int32;
+    end;
+    type TSubsetList = array of TSubset;
+    type TSkinBuffer = record
+      VertexBuffer: TGLuint;
+      VertexCount: TGluint;
+      WeightCount: Int32;
+    end;
+    type TSkinBufferList = array of TSkinBuffer;
+  private
+    var _Mesh: TMesh;
+    var _Subsets: TSubsetList;
+    var _Buffers: TSkinBufferList;
+  public
+    property Mesh: TMesh read _Mesh;
+    property Subsets: TSubsetList read _Subsets;
+    property Buffers: TSkinBufferList read _Buffers;
     constructor Create(const SkinData: TUSceneData.TSkinInterface);
     destructor Destroy; override;
   end;
@@ -91,18 +111,29 @@ type
   public
     type TNodeList = array of TNode;
     type TAttachment = class
-    end;
-    type TAttachmentMesh = class (TAttachment)
     private
       var _Node: TNode;
-      var _Mesh: TMesh;
-      var _Materials: TMaterial.TMaterialList;
       procedure SetNode(const Value: TNode);
     public
       property Node: TNode read _Node write SetNode;
+    end;
+    type TAttachmentMesh = class (TAttachment)
+    private
+      var _Mesh: TMesh;
+      var _Materials: TMaterial.TMaterialList;
+    public
       property Mesh: TMesh read _Mesh;
       property Materials: TMaterial.TMaterialList read _Materials;
       constructor Create(const AttachData: TUSceneData.TAttachmentMesh);
+    end;
+    type TAttachmentSkin = class (TAttachment)
+    private
+      var _Skin: TSkin;
+      var _Materials: TMaterial.TMaterialList;
+    public
+      property Skin: TSkin read _Skin;
+      property Materials: TMaterial.TMaterialList read _Materials;
+      constructor Create(const AttachData: TUSceneData.TAttachmentSkin);
     end;
     type TAttachmentList = array of TAttachment;
   private
@@ -420,8 +451,52 @@ begin
 end;
 
 constructor TSkin.Create(const SkinData: TUSceneData.TSkinInterface);
+  function FindOrCreateBuffer(const WeightCount: Int32): Int32;
+    var i: Int32;
+  begin
+    for i := 0 to High(_Buffers) do
+    if _Buffers[i].WeightCount = WeightCount then
+    begin
+      Exit(i);
+    end;
+    i := Length(_Buffers);
+    SetLength(_Buffers, i + 1);
+    _Buffers[i].WeightCount := WeightCount;
+    _Buffers[i].VertexCount := 0;
+    glCreateBuffers(1, @_Buffers[i].VertexBuffer);
+    Result := i;
+  end;
+  var i, cb: Int32;
+  var Buffer: Pointer;
+  const WeightSize = SizeOf(UInt32) + SizeOf(TUFloat);
 begin
-
+  _Mesh := Form1.MeshRemap.FindValueByKey(SkinData.Mesh).Ptr;
+  SetLength(_Subsets, Length(_Mesh.Subsets));
+  for i := 0 to High(_Subsets) do
+  begin
+    _Subsets[i] := TSubset.Create;
+    cb := FindOrCreateBuffer(SkinData.Subsets[i].WeightCount);
+    _Subsets[i].BufferIndex := cb;
+    _Subsets[i].VertexOffset := _Buffers[cb].VertexCount;
+    _Buffers[cb].VertexCount += _Mesh.Subsets[i].VertexCount;
+  end;
+  for cb := 0 to High(_Buffers) do
+  begin
+    glBindBuffer(GL_ARRAY_BUFFER, _Buffers[cb].VertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, _Buffers[cb].VertexCount * _Buffers[cb].WeightCount * WeightSize, nil, GL_STATIC_DRAW);
+    Buffer := glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+    for i := 0 to High(_Subsets) do
+    if _Subsets[i].BufferIndex = cb then
+    begin
+      Move(
+        SkinData.Subsets[i].VertexData^,
+        (Buffer + _Subsets[i].VertexOffset * WeightSize)^,
+        _Mesh.Subsets[i].VertexCount * _Buffers[cb].WeightCount * WeightSize
+      );
+    end;
+    glUnmapBuffer(GL_ARRAY_BUFFER);
+  end;
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 end;
 
 destructor TSkin.Destroy;
@@ -483,7 +558,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TNode.TAttachmentMesh.SetNode(const Value: TNode);
+procedure TNode.TAttachment.SetNode(const Value: TNode);
 begin
   if _Node = Value then Exit;
   if Assigned(_Node) then _Node.AttachRemove(Self);
@@ -496,7 +571,29 @@ constructor TNode.TAttachmentMesh.Create(
 );
   var i: Int32;
 begin
+  inherited Create;
   _Mesh := Form1.MeshRemap.FindValueByKey(AttachData.Mesh).Ptr;
+  SetLength(_Materials, Length(AttachData.MaterialBindings));
+  for i := 0 to High(_Materials) do
+  begin
+    if Assigned(AttachData.MaterialBindings[i].BaseMaterial) then
+    begin
+      _Materials[i] := Form1.MaterialRemap.FindValueByKey(
+        AttachData.MaterialBindings[i].BaseMaterial
+      ).Ptr;
+    end
+    else
+    begin
+      _Materials[i] := nil;
+    end;
+  end;
+end;
+
+constructor TNode.TAttachmentSkin.Create(const AttachData: TUSceneData.TAttachmentSkin);
+  var i: Int32;
+begin
+  inherited Create;
+  _Skin := Form1.SkinRemap.FindValueByKey(AttachData.Skin).Ptr;
   SetLength(_Materials, Length(AttachData.MaterialBindings));
   for i := 0 to High(_Materials) do
   begin
@@ -727,11 +824,18 @@ end;
 
 procedure TForm1.Initialize;
 begin
-  Load('../Assets/siren/siren.dae');
+  //Load('../Assets/siren/siren.dae');
+  Load('../Assets/siren/siren_anim.dae');
 end;
 
 procedure TForm1.Finalize;
 begin
+  TextureRemap.Clear;
+  MaterialRemap.Clear;
+  SkinRemap.Clear;
+  MeshRemap.Clear;
+  NodeRemap.Clear;
+  RootNode := nil;
   Skins := nil;
   Meshes := nil;
   Shader := nil;
@@ -750,16 +854,15 @@ begin
     uif_r8g8b8a8: begin Format := GL_RGBA; DataType := GL_UNSIGNED_BYTE; Exit; end;
     uif_r16g16b16a16: begin Format := GL_RGBA; DataType := GL_UNSIGNED_SHORT; Exit; end;
     uif_r32g32b32_f: begin Format := GL_RGB; DataType := GL_FLOAT; Exit; end;
+    else begin Format := 0; DataType := 0; Exit; end;
   end;
-  Format := 0;
-  DataType := 0;
 end;
 
 procedure TForm1.Load(const FileName: String);
   var i: Integer;
   var Scene: TUSceneDataDAE;
 begin
-  Scene := TUSceneDataDAE.Create;
+  Scene := TUSceneDataDAE.Create([]);
   try
     Scene.Load(FileName);
     SetLength(Textures, Length(Scene.ImageList));
