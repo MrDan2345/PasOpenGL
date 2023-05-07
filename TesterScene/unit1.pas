@@ -644,6 +644,7 @@ constructor TNode.Create(
 );
   var i: Int32;
   var AttachMesh: TAttachmentMesh;
+  var AttachSkin: TAttachmentSkin;
 begin
   _Name := NodeData.Name;
   Parent := AParent;
@@ -656,6 +657,13 @@ begin
         TUSceneData.TAttachmentMesh(NodeData.Attachments[i])
       );
       AttachMesh.Node := Self;
+    end
+    else if NodeData.Attachments[i] is TUSceneData.TAttachmentSkin then
+    begin
+      AttachSkin := TAttachmentSkin.Create(
+        TUSceneData.TAttachmentSkin(NodeData.Attachments[i])
+      );
+      AttachSkin.Node := Self;
     end;
   end;
   Form1.NodeRemap.Add(NodeData, Self);
@@ -681,7 +689,8 @@ procedure TForm1.Tick;
   var W, V, P, WVP: TUMat;
   procedure DrawNode(const Node: TNode);
     var Attach: TNode.TAttachment;
-    var MeshAttach: TNode.TAttachmentMesh;
+    var AttachMesh: TNode.TAttachmentMesh;
+    var AttachSkin: TNode.TAttachmentSkin;
     var CurBuffer, NewBuffer, CurTexture, NewTexture: TGLuint;
     var Subset: TMesh.TSubset;
     var Xf: TUMat;
@@ -690,22 +699,22 @@ procedure TForm1.Tick;
     for Attach in Node.Attachments do
     if Attach is TNode.TAttachmentMesh then
     begin
-      MeshAttach := TNode.TAttachmentMesh(Attach);
-      Xf := MeshAttach.Node.Transform;
+      AttachMesh := TNode.TAttachmentMesh(Attach);
+      Xf := AttachMesh.Node.Transform;
       WVP := Xf * W * V * P;
       glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
       CurBuffer := 0;
       CurTexture := 0;
-      for i := 0 to High(MeshAttach.Mesh.Subsets) do
+      for i := 0 to High(AttachMesh.Mesh.Subsets) do
       begin
-        Subset := MeshAttach.Mesh.Subsets[i];
-        NewBuffer := MeshAttach.Mesh.Buffers[Subset.BufferIndex].VertexArray;
+        Subset := AttachMesh.Mesh.Subsets[i];
+        NewBuffer := AttachMesh.Mesh.Buffers[Subset.BufferIndex].VertexArray;
         if NewBuffer <> CurBuffer then
         begin
           CurBuffer := NewBuffer;
           glBindVertexArray(CurBuffer);
         end;
-        NewTexture := MeshAttach.Materials[i].Texture.Ptr.Handle;
+        NewTexture := AttachMesh.Materials[i].Texture.Ptr.Handle;
         if NewTexture <> CurTexture then
         begin
           CurTexture := NewTexture;
@@ -713,7 +722,35 @@ procedure TForm1.Tick;
           glBindTexture(GL_TEXTURE_2D, CurTexture);
           glUniform1i(UniformTex0, 0);
         end;
-        MeshAttach.Mesh.DrawSubset(i);
+        AttachMesh.Mesh.DrawSubset(i);
+      end;
+    end
+    else if Attach is TNode.TAttachmentSkin then
+    begin
+      AttachSkin := TNode.TAttachmentSkin(Attach);
+      Xf := AttachSkin.Node.Transform;
+      WVP := Xf * W * V * P;
+      glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
+      CurBuffer := 0;
+      CurTexture := 0;
+      for i := 0 to High(AttachSkin.Skin.Mesh.Subsets) do
+      begin
+        Subset := AttachSkin.Skin.Mesh.Subsets[i];
+        NewBuffer := AttachSkin.Skin.Mesh.Buffers[Subset.BufferIndex].VertexArray;
+        if NewBuffer <> CurBuffer then
+        begin
+          CurBuffer := NewBuffer;
+          glBindVertexArray(CurBuffer);
+        end;
+        NewTexture := AttachSkin.Materials[i].Texture.Ptr.Handle;
+        if NewTexture <> CurTexture then
+        begin
+          CurTexture := NewTexture;
+          glActiveTexture(GL_TEXTURE0);
+          glBindTexture(GL_TEXTURE_2D, CurTexture);
+          glUniform1i(UniformTex0, 0);
+        end;
+        AttachSkin.Skin.Mesh.DrawSubset(i);
       end;
     end;
     for i := 0 to High(Node.Children) do
