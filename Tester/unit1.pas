@@ -7,17 +7,25 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, PasOpenGL,
-  CommonUtils, Windows;
+{$if defined(WINDOWS)}
+  Windows,
+{$endif}
+  CommonUtils;
 
 type
+
+  { TForm1 }
+
   TForm1 = class(TForm)
     Timer1: TTimer;
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCreate(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
   private
+{$if defined(WINDOWS)}
     var RenderContext: HGLRC;
     var DeviceContext: HDC;
+{$endif}
     var VertexArray: TGLuint;
     var VertexBuffer: TGLuint;
     var IndexBuffer: TGLuint;
@@ -25,6 +33,10 @@ type
     var PixelShader: TGLuint;
     var UniformWVP: TGLint;
     var Shader: TGLuint;
+{$if defined(WINDOWS)}
+    procedure WinInitializeOpenGL;
+    procedure WinFinalizeOpenGL;
+{$endif}
     procedure InitializeOpenGL;
     procedure FinalizeOpenGL;
     procedure PrintInfo;
@@ -44,7 +56,7 @@ implementation
 procedure TForm1.Timer1Timer(Sender: TObject);
   var W, V, P, WVP: TUMat;
 begin
-  W := TUMat.RotationY(((GetTickCount mod 4000) / 4000) * UTwoPi);
+  W := TUMat.RotationY(((GetTickCount64 mod 4000) / 4000) * UTwoPi);
   v := TUMat.View(TUVec3.Make(0, 1.5, -2), TUVec3.Zero, TUVec3.Make(0, 1, 0));
   P := TUMat.Proj(UPi * 0.5, ClientWidth / ClientHeight, 0.1, 100);
   WVP := W * V * P;
@@ -60,10 +72,13 @@ begin
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nil);
   //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+{$if defined(WINDOWS)}
   SwapBuffers(DeviceContext);
+{$endif}
 end;
 
-procedure TForm1.InitializeOpenGL;
+{$if defined(WINDOWS)}
+procedure TForm1.WinInitializeOpenGL;
   var pfd: TPixelFormatDescriptor;
   var pf: Integer;
   var pfn: GLuint;
@@ -115,10 +130,25 @@ begin
   wglMakeCurrent(DeviceContext, RenderContext);
 end;
 
-procedure TForm1.FinalizeOpenGL;
+procedure TForm1.WinFinalizeOpenGL;
 begin
   wglDeleteContext(RenderContext);
   ReleaseDC(Handle, DeviceContext);
+end;
+{$endif}
+
+procedure TForm1.InitializeOpenGL;
+begin
+  {$if defined(WINDOWS)}
+  WinInitializeOpenGL;
+  {$endif}
+end;
+
+procedure TForm1.FinalizeOpenGL;
+begin
+  {$if defined(WINDOWS)}
+  WinFinalizeOpenGL;
+  {$endif}
 end;
 
 procedure TForm1.PrintInfo;

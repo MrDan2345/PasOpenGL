@@ -6,13 +6,26 @@ uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils, OpenSSL, OpenSSLSockets, FPHttpClient, CommonUtils;
+  Classes,
+  SysUtils,
+  OpenSSL,
+  OpenSSLSockets,
+  FPHttpClient,
+  CommonUtils;
 
 type
   TMyHttpClient = class (TFPHTTPClient)
   public
     constructor Create(AOwner: TComponent); override;
   end;
+
+  { THeaderGenXML }
+
+  THeaderGenXML = class (TUXML)
+  public
+    class constructor CreateClass;
+  end;
+  THeaderGenXMLRef = specialize TUSharedRef<THeaderGenXML>;
 
   THeaderGen = class
   public
@@ -33,7 +46,7 @@ type
       procedure Reset;
       procedure AddParam(const Param: TTypeDecl);
       procedure AddMember(const Member: TTypeDecl);
-      function ToString(const Separator: String = ' = '): String;
+      function ToString(const Separator: String = ' = '; const NameTypeCheck: Boolean = False): String;
     end;
     type TEnumDecl = object
       Platform: String;
@@ -56,13 +69,17 @@ type
     end;
   private
     class var SynType: TUParserSyntax;
+    var TypeRenames: array of String;
+    procedure AddTypeRename(const TypeName: String);
+    function FindTypeRename(const TypeName: String): Boolean;
+    function VerifyRename(const TypeName: String): String;
     procedure DeclPtr(const Decl: TTypeDecl);
     function ParseDecl(const Desc: String; out Decl: TTypeDecl): Boolean;
     function ProcessType(const Node: TUXML): Boolean;
     function ProcessEnum(const Node: TUXML): Boolean;
     function ProcessCommand(const Node: TUXML): Boolean;
-    class function TranslateType(const TypeDesc: String; const Ptr: Integer = 0): String;
-    class function ValidateName(const NameStr: String): String;
+    function TranslateType(const TypeDesc: String; const Ptr: Integer = 0): String;
+    function ValidateName(const NameStr: String; const TypeCheck: Boolean = False): String;
     function CheckAPI(const APIStr: String): Boolean;
   public
     var TypeDefs: array of TTypeDecl;
@@ -73,11 +90,26 @@ type
     class constructor CreateClass;
     constructor Create;
     function Process(const xml: TUXML): Boolean;
+    procedure FwdType(const TypeName: String);
   end;
+//*)
+
+procedure StrAppendSp(var Str: String; const SubStr: String; const Sep: String = ' ');
+begin
+  if Length(Str) > 0 then Str += Sep;
+  Str += SubStr;
+end;
 
 var RootDir: String;
 var Gen: THeaderGen;
 
+class constructor THeaderGenXML.CreateClass;
+begin
+  _SyntaxTags.AddComment('<![', ']>');
+  _SyntaxContent.AddComment('<![', ']>');
+end;
+
+//(*
 procedure THeaderGen.TTypeDecl.Reset;
 begin
   Platform := '';
@@ -104,17 +136,19 @@ begin
   specialize UArrAppend<TTypeDecl>(Members, Member);
 end;
 
-function THeaderGen.TTypeDecl.ToString(const Separator: String): String;
+function THeaderGen.TTypeDecl.ToString(const Separator: String; const NameTypeCheck: Boolean): String;
   var i: Integer;
 begin
-  Result := ValidateName(Name) + Separator;
+  Result := Gen.ValidateName(Name);
+  if not IsFunc then Result := Gen.VerifyRename(Result);
+  Result += Separator;
   if IsFunc then
   begin
     if IsVoid then Result += 'procedure (' else Result += 'function (';
     for i := 0 to High(Params) do
     begin
       if i > 0 then Result += '; ';
-      Result += Params[i].ToString(': ');
+      Result += Params[i].ToString(': ', True);
     end;
     Result += ')';
     if not IsVoid then Result += ': ' + Desc;
@@ -125,7 +159,7 @@ begin
     Result += 'record'#$D#$A;
     for i := 0 to High(Members) do
     begin
-      Result += '    ' + Members[i].Name + ': ';
+      Result += '    ' + Gen.ValidateName(Members[i].Name) + ': ';
       if Members[i].ArrCount > 1 then
       begin
         Result += 'array [0..' + IntToStr(Members[i].ArrCount - 1) + '] of ';
@@ -144,7 +178,7 @@ begin
     end
     else
     begin
-      Result += Desc;
+      Result += Gen.VerifyRename(Desc);
     end;
   end;
 end;
@@ -164,7 +198,7 @@ end;
 
 function THeaderGen.TEnumDecl.ToString: String;
 begin
-  Result := ValidateName(Name) + ' = $' + IntToHex(Value);
+  Result := Gen.ValidateName(Name) + ' = $' + IntToHex(Value);
 end;
 
 procedure THeaderGen.TFuncDecl.Reset;
@@ -204,6 +238,28 @@ begin
   begin
     Result += ': ' + FuncDesc.Desc;
   end;
+end;
+
+procedure THeaderGen.AddTypeRename(const TypeName: String);
+begin
+  if FindTypeRename(TypeName) then Exit;
+  specialize UArrAppend<String>(TypeRenames, TypeName);
+end;
+
+function THeaderGen.FindTypeRename(const TypeName: String): Boolean;
+  var i: Int32;
+begin
+  for i := 0 to High(TypeRenames) do
+  if LowerCase(TypeRenames[i]) = LowerCase(TypeName) then Exit(True);
+  Result := False;
+end;
+
+function THeaderGen.VerifyRename(const TypeName: String): String;
+  var tn: String;
+begin
+  tn := StringReplace(TypeName, '^', '', [rfReplaceAll]);
+  if FindTypeRename(tn) then Exit(TypeName + '_');
+  Result := TypeName;
 end;
 
 procedure THeaderGen.DeclPtr(const Decl: TTypeDecl);
@@ -254,7 +310,8 @@ begin
     Decl.Platform := Platform;
     repeat
       t := p.NextToken;
-      if t = 'const' then Decl.IsConst := True
+      if t = 'typedef' then begin end
+      else if t = 'const' then Decl.IsConst := True
       else if t = '#include' then Exit
       else if t = '*' then Inc(Decl.PtrCount)
       else if t = '&' then Decl.IsRef := True
@@ -285,8 +342,7 @@ begin
           end
           else
           begin
-            if Length(Param) > 0 then Param += ' ';
-            Param += t.Value;
+            StrAppendSp(Param, t.Value);
           end;
         until t = tt_eof;
       end
@@ -297,28 +353,34 @@ begin
         Member := '';
         repeat
           t := p.NextToken;
-          if t = [';', '}'] then
+          if t = [',', ';', '}'] then
           begin
-            if (Length(Member) > 0) and ParseDecl(Member, pd) then
+            if (Length(Member) > 0) then
             begin
-              Decl.AddMember(pd);
+              if ParseDecl(Member, pd) then
+              begin
+                Decl.AddMember(pd);
+              end;
+              if t = ',' then Member := UStrExplode(Member, ' ')[0]
+              else Member := '';
             end;
-            Member := '';
             if t = '}' then Break;
           end
           else
           begin
-            if Length(Member) > 0 then Member += ' ';
-            Member += t.Value;
+            StrAppendSp(Member, t.Value);
           end;
         until t = tt_eof;
+      end
+      else if t = tt_keyword then
+      begin
+        StrAppendSp(Decl.Desc, t.Value);
       end
       else if t = tt_word then
       begin
         if Length(Decl.Name) > 0 then
         begin
-          if Length(Decl.Desc) > 0 then Decl.Desc += ' ';
-          Decl.Desc += Decl.Name;
+          StrAppendSp(Decl.Desc, Decl.Name);
         end;
         Decl.Name := t.Value;
       end
@@ -451,7 +513,7 @@ begin
   Result := True;
 end;
 
-class function THeaderGen.TranslateType(const TypeDesc: String; const Ptr: Integer = 0): String;
+function THeaderGen.TranslateType(const TypeDesc: String; const Ptr: Integer = 0): String;
   var DescArr: TUStrArr;
   var BaseType: String;
   var PtrCount: Integer;
@@ -487,6 +549,45 @@ begin
     Inc(LongCount);
   end;
   BaseType := StringReplace(BaseType, 'khronos_', '', [rfReplaceAll]);
+  if Platform = 'linux' then
+  begin
+    if BaseType = 'XID' then
+    begin
+      BaseType := 'TXID';
+    end
+    else if BaseType = 'Window' then
+    begin
+      BaseType := 'TWindow';
+    end
+    else if BaseType = 'Display' then
+    begin
+      BaseType := 'TXDisplay';
+    end
+    else if BaseType = 'XVisualInfo' then
+    begin
+      BaseType := 'TXVisualInfo';
+    end
+    else if BaseType = 'Pixmap' then
+    begin
+      BaseType := 'TPixmap';
+    end
+    else if BaseType = 'Colormap' then
+    begin
+      BaseType := 'TColormap';
+    end
+    else if BaseType = 'Status' then
+    begin
+      BaseType := 'TStatus';
+    end
+    else if BaseType = 'Font' then
+    begin
+      BaseType := 'TFont';
+    end
+    else if BaseType = 'Bool' then
+    begin
+      BaseType := 'Boolean';
+    end;
+  end;
   if BaseType = 'int8_t' then
   begin
     BaseType := 'char';
@@ -585,7 +686,7 @@ begin
   Result := BaseType;
 end;
 
-class function THeaderGen.ValidateName(const NameStr: String): String;
+function THeaderGen.ValidateName(const NameStr: String; const TypeCheck: Boolean): String;
   const InvalidNames: array[0..18] of String = (
     'program', 'type', 'string', 'message',
     'procedure', 'function', 'record', 'unit',
@@ -595,10 +696,16 @@ class function THeaderGen.ValidateName(const NameStr: String): String;
   );
   var i: Integer;
   var nls: String;
+  var dt: TTypeDecl;
 begin
   nls := LowerCase(NameStr);
   for i := 0 to High(InvalidNames) do
   if nls = InvalidNames[i] then Exit('_' + NameStr);
+  if TypeCheck then
+  begin
+    for dt in TypeDefs do
+    if nls = LowerCase(dt.Name) then Exit('_' + NameStr);
+  end;
   Result := NameStr;
 end;
 
@@ -618,7 +725,9 @@ begin
   with SynType do
   begin
     AddSymbols(['*', '&', '(', ')', ';', ',', '[', ']']);
-    AddKeywords(['#include', 'typedef', 'const']);
+    AddKeywords(['#include', 'typedef', 'const', 'class', 'struct']);
+    AddCommentLine('//');
+    AddComment('/*', '*/')
   end;
 end;
 
@@ -629,6 +738,7 @@ end;
 
 function THeaderGen.Process(const xml: TUXML): Boolean;
   var i, j: Integer;
+  var dt: TTypeDecl;
 begin
   Result := False;
   if xml.Name <> 'registry' then Exit;
@@ -656,7 +766,34 @@ begin
       end;
     end;
   end;
+  for i := 0 to High(TypeDefs) do
+  begin
+    if TypeDefs[i].Platform <> Platform then Continue;
+    for j := 0 to High(FuncDefs) do
+    begin
+      if (FuncDefs[j].Platform <> Platform) then Continue;
+      if (
+         (LowerCase(TypeDefs[i].Name) = LowerCase(FuncDefs[j].AliasName))
+         or (LowerCase(TypeDefs[i].Name) = LowerCase('T' + FuncDefs[j].AliasName))
+         or (LowerCase(TypeDefs[i].Name) = LowerCase(FuncDefs[j].FuncDesc.Name))
+         or (LowerCase(TypeDefs[i].Name) = LowerCase('T' + FuncDefs[j].FuncDesc.Name))
+      ) then
+      begin
+        AddTypeRename(TypeDefs[i].Name);
+      end;
+    end;
+  end;
   Result := True;
+end;
+
+procedure THeaderGen.FwdType(const TypeName: String);
+  var d: TTypeDecl;
+begin
+  d.Reset;
+  d.Name := TypeName;
+  d.Desc := 'record';
+  d.Platform := Platform;
+  specialize UArrAppend<TTypeDecl>(TypeDefs, d);
 end;
 
 constructor TMyHttpClient.Create(AOwner: TComponent);
@@ -692,11 +829,12 @@ end;
 
 procedure Run;
   var s: String;
-  var xml: TUXMLRef;
+  var xml: THeaderGenXMLRef;
   var dt: THeaderGen.TTypeDecl;
   var de: THeaderGen.TEnumDecl;
   var df: THeaderGen.TFuncDecl;
   var Templ: String;
+  var Platform: String;
   const GDIFunctions: array[0..4] of String = (
     'ChoosePixelFormat',
     'DescribePixelFormat',
@@ -714,6 +852,9 @@ procedure Run;
     end;
     Result := False;
   end;
+  const Platforms: array[0..1] of String = (
+    'windows', 'linux'
+  );
 begin
   DownloadXML;
   Gen := THeaderGen.Create;
@@ -724,12 +865,23 @@ begin
     if xml.IsValid then Gen.Process(xml.Ptr);
     s := UFileToStr(RootDir + '/xml/wgl.xml');
     xml := TUXML.Load(s);
-    if xml.IsValid then
-    begin
-      Gen.Platform := 'windows';
-      Gen.Process(xml.Ptr);
-      Gen.Platform := '';
-    end;
+    if not xml.IsValid then Exit;
+    Gen.Platform := 'windows';
+    Gen.Process(xml.Ptr);
+    Gen.Platform := '';
+    s := UFileToStr(RootDir + '/xml/glx.xml');
+    xml := TUXML.Load(s);
+    if not xml.IsValid then Exit;
+    Gen.Platform := 'linux';
+    Gen.FwdType('__GLXFBConfigRec');
+    Gen.FwdType('__GLXcontextRec');
+    Gen.FwdType('DMparams');
+    Gen.FwdType('DMbuffer');
+    Gen.FwdType('VLNode');
+    Gen.FwdType('VLPath');
+    Gen.FwdType('VLServer');
+    Gen.Process(xml.Ptr);
+    Gen.Platform := '';
     if Length(Gen.TypeDefs) > 0 then
     begin
       s := 'type'#$D#$A;
@@ -739,20 +891,23 @@ begin
         s += '  ' + dt.ToString + ';'#$D#$A;
         if dt.Name.StartsWith('GL', True) then
         begin
-          s += '  T' + dt.Name + ' = ' + dt.Name + ';'#$D#$A;
+          s += '  T' + Gen.VerifyRename(dt.Name) + ' = ' + Gen.VerifyRename(dt.Name) + ';'#$D#$A;
         end;
       end;
-      s += '{$if defined(WINDOWS)}'#$D#$A;
-      for dt in Gen.TypeDefs do
-      if dt.Platform = 'windows' then
+      for Platform in Platforms do
       begin
-        s += '  ' + dt.ToString + ';'#$D#$A;
-        if dt.Name.StartsWith('GL', True) then
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for dt in Gen.TypeDefs do
+        if dt.Platform = Platform then
         begin
-          s += '  T' + dt.Name + ' = ' + dt.Name + ';'#$D#$A;
+          s += '  ' + dt.ToString + ';'#$D#$A;
+          if dt.Name.StartsWith('GL', True) then
+          begin
+            s += '  T' + Gen.VerifyRename(dt.Name) + ' = ' + Gen.VerifyRename(dt.Name) + ';'#$D#$A;
+          end;
         end;
+        s += '{$endif}'#$D#$A;
       end;
-      s += '{$endif}'#$D#$A;
     end;
     if Length(Gen.EnumDefs) > 0 then
     begin
@@ -769,20 +924,23 @@ begin
           s += '  ' + de.ToString + ';'#$D#$A;
         end;
       end;
-      s += '{$if defined(WINDOWS)}'#$D#$A;
-      for de in Gen.EnumDefs do
-      if de.Platform = 'windows' then
+      for Platform in Platforms do
       begin
-        if de.HasAlias then
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for de in Gen.EnumDefs do
+        if de.Platform = Platform then
         begin
-          s += '  ' + de.Name + ' = ' + de.AliasName + ';'#$D#$A;
-        end
-        else
-        begin
-          s += '  ' + de.ToString + ';'#$D#$A;
+          if de.HasAlias then
+          begin
+            s += '  ' + de.Name + ' = ' + de.AliasName + ';'#$D#$A;
+          end
+          else
+          begin
+            s += '  ' + de.ToString + ';'#$D#$A;
+          end;
         end;
+        s += '{$endif}'#$D#$A;
       end;
-      s += '{$endif}'#$D#$A;
     end;
     if Length(Gen.FuncDefs) > 0 then
     begin
@@ -792,13 +950,16 @@ begin
       begin
         s += '  T' + df.ToString(' = ') + '; libdecl;'#$D#$A;
       end;
-      s += '{$if defined(WINDOWS)}'#$D#$A;
-      for df in Gen.FuncDefs do
-      if df.Platform = 'windows' then
+      for Platform in Platforms do
       begin
-        s += '  T' + df.ToString(' = ') + '; libdecl;'#$D#$A;
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for df in Gen.FuncDefs do
+        if df.Platform = Platform then
+        begin
+          s += '  T' + df.ToString(' = ') + '; libdecl;'#$D#$A;
+        end;
+        s += '{$endif}'#$D#$A;
       end;
-      s += '{$endif}'#$D#$A;
       s += 'var'#$D#$A;
       for df in Gen.FuncDefs do
       if df.Platform = '' then
@@ -809,40 +970,46 @@ begin
           s += '  ' + df.AliasName + ': T' + df.FuncDesc.Name + ';'#$D#$A;
         end;
       end;
-      s += '{$if defined(WINDOWS)}'#$D#$A;
-      for df in Gen.FuncDefs do
-      if df.Platform = 'windows' then
+      for Platform in Platforms do
       begin
-        s += '  ' + df.FuncDesc.Name + ': T' + df.FuncDesc.Name + ';'#$D#$A;
-        if df.HasAlias then
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for df in Gen.FuncDefs do
+        if df.Platform = Platform then
         begin
-          s += '  ' + df.AliasName + ': T' + df.FuncDesc.Name + ';'#$D#$A;
+          s += '  ' + df.FuncDesc.Name + ': T' + df.FuncDesc.Name + ';'#$D#$A;
+          if df.HasAlias then
+          begin
+            s += '  ' + df.AliasName + ': T' + df.FuncDesc.Name + ';'#$D#$A;
+          end;
         end;
+        s += '{$endif}'#$D#$A;
       end;
-      s += '{$endif}'#$D#$A;
     end;
     Templ := StringReplace(Templ, '{#intf}', s, []);
     s := '';
     if Length(Gen.FuncDefs) > 0 then
     begin
-      s += '{$if defined(WINDOWS)}'#$D#$A;
-      for df in Gen.FuncDefs do
-      if df.Platform = 'windows' then
+      for Platform in Platforms do
       begin
-        if IsGDI(df.FuncDesc.Name) then
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for df in Gen.FuncDefs do
+        if df.Platform = Platform then
         begin
-          s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(@GDI' + df.FuncDesc.Name + ');'#$D#$A;
-        end
-        else
-        begin
-          s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
+          if IsGDI(df.FuncDesc.Name) then
+          begin
+            s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(@GDI' + df.FuncDesc.Name + ');'#$D#$A;
+          end
+          else
+          begin
+            s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
+          end;
+          if df.HasAlias then
+          begin
+            s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + #$D#$A;
+          end;
         end;
-        if df.HasAlias then
-        begin
-          s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + #$D#$A;
-        end;
+        s += '{$endif}'#$D#$A;
       end;
-      s += '{$endif}'#$D#$A;
       for df in Gen.FuncDefs do
       if df.Platform = '' then
       begin
@@ -860,7 +1027,7 @@ begin
     Gen.Free;
   end;
 end;
-
+//*)
 begin
   RootDir := ExtractFileDir(ParamStr(0));
   Run;

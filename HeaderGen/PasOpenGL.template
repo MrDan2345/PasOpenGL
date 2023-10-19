@@ -50,9 +50,8 @@ interface
 
 {$if defined(WINDOWS)}
 var glSharedDC: HDC;
-{$endif}
-
 var glSharedContext: HGLRC;
+{$endif}
 
 implementation
 

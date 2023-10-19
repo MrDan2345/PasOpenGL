@@ -6,7 +6,9 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
+  {$if defined(WINDOWS)}
   Windows,
+  {$endif}
   Classes,
   CommonUtils,
   SysUtils,
