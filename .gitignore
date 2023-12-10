@@ -1,0 +1,12 @@
+#linux executables (no ext)
+*
+!/**/
+!*.*
+
+*.exe
+*.dll
+*.lps
+
+backup/
+lib/
+*.~*
