@@ -245,55 +245,107 @@ begin
   ExitCode := 0;
 end;
 {$elseif defined(LINUX)}
+const _NET_WM_STATE_REMOVE = 0;
+const _NET_WM_STATE_ADD = 1;
+const _NET_WM_STATE_TOGGLE = 2;
 procedure CreateWindow(const W, H: Integer; const Caption: AnsiString = 'PureOGL');
-  var Visual: PVisual;
-  var Attribs: TXSetWindowAttributes;
-  var x, y, sw, sh, sn: Int32;
-  var s: PScreen;
-  var rwnd, pwnd, cwnd: TWindow;
-  var rx, ry, rw, rh, rb, rd: Int32;
-  var nc: UInt32;
+  procedure Maximize;
+    var Event: TXEvent;
+  begin
+    Event := Default(TXEvent);
+    Event._type := ClientMessage;
+    Event.xclient.window := WindowHandle;
+    Event.xclient.message_type := XInternAtom(Display, '_NET_WM_STATE', False);
+    Event.xclient.format := 32;
+    Event.xclient.data.l[0] := _NET_WM_STATE_ADD;
+    Event.xclient.data.l[1] := XInternAtom(Display, '_NET_WM_STATE_MAXIMIZED_HORZ', False);
+    Event.xclient.data.l[2] := XInternAtom(Display, '_NET_WM_STATE_MAXIMIZED_VERT', False);
+    XSendEvent(Display, DefaultRootWindow(Display), False, SubstructureNotifyMask, @Event);
+  end;
+  procedure Fullscreen;
+    var Event: TXEvent;
+  begin
+    Event := Default(TXEvent);
+    Event._type := ClientMessage;
+    Event.xclient.window := WindowHandle;
+    Event.xclient.message_type := XInternAtom(Display, '_NET_WM_STATE', False);
+    Event.xclient.format := 32;
+    Event.xclient.data.l[0] := _NET_WM_STATE_ADD;
+    Event.xclient.data.l[1] := XInternAtom(Display, '_NET_WM_STATE_FULLSCREEN', False);
+    XSendEvent(Display, DefaultRootWindow(Display), False, SubstructureNotifyMask, @Event);
+  end;
+  procedure Windowed;
+    var PropAtom: array of TAtom;
+    const XA_ATOM = 4;
+  begin
+    PropAtom := [
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_NOTIFICATION', False),
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_SPLASH', False),
+      XInternAtom(Display, '_NET_WM_WINDOW_TYPE_DIALOG', False)
+    ];
+    XChangeProperty(
+      Display, WindowHandle, XInternAtom(Display, '_NET_WM_WINDOW_TYPE', False),
+      XA_ATOM, 32, PropModeReplace, @PropAtom[0], Length(PropAtom)
+    );
+  end;
+  var VisualAttribs: array of Int32;
+  var VisualInfo: PTXVisualInfo;
+  var ColorMap: TColormap;
+  var WindowAttribsInit: TXSetWindowAttributes;
 begin
-
-  Display := XOpenDisplay(':0.0');
-  sn := ScreenCount(Display);
-  WriteLn(sn);
+  Display := XOpenDisplay(nil);
+  if not Assigned(Display) then
+  begin
+    WriteLn('Cannot open display');
+    Exit;
+  end;
   Screen := DefaultScreen(Display);
-  XGetGeometry(Display, RootWindow(Display, Screen), @rwnd, @rx, @ry, @rw, @rh, @rb, @rd);
-  XQueryTree(Display, RootWindow(Display, Screen), @rwnd, @pwnd, @cwnd, @nc);
-  s := ScreenOfDisplay(Display, 0);
-  WriteLn(s^.width);
-  Visual := DefaultVisual(Display, Screen);
-  Attribs := Default(TXSetWindowAttributes);
-  Attribs.background_pixel := XWhitePixel(Display, Screen);
-  sw := DisplayWidth(Display, Screen);
-  sh := DisplayHeight(Display, Screen);
-  x := (sw - W) div 2;
-  y := (sh - H) div 2;
+  VisualAttribs := [
+    GLX_RGBA, GLX_DEPTH_SIZE, 24,
+    GLX_RED_SIZE, 8,
+    GLX_GREEN_SIZE, 8,
+    GLX_BLUE_SIZE, 8,
+    GLX_ALPHA_SIZE, 8,
+    GLX_DOUBLEBUFFER, None
+  ];
+  VisualInfo := glXChooseVisual(Display, 0, @VisualAttribs[0]);
+  ColorMap := XCreateColormap(Display, DefaultRootWindow(Display), VisualInfo^.visual, AllocNone);
+  WindowAttribsInit := Default(TXSetWindowAttributes);
+  WindowAttribsInit.colormap := ColorMap;
+  WindowAttribsInit.event_mask := ExposureMask or KeyPressMask;
+  WindowAttribsInit.background_pixel := XWhitePixel(Display, Screen);
+  WindowAttribsInit.border_pixel := 0;
+  WindowAttribsInit.background_pixel := 0;
   WindowHandle := XCreateWindow(
-    Display, RootWindow(Display, Screen), x, y, W, H, 1,
-    DefaultDepth(Display, Screen), InputOutput, Visual,
-    CWBackPixel, @Attribs
+    Display, RootWindow(Display, Screen), 0, 0, W, H, 1,
+    DefaultDepth(Display, Screen), InputOutput, VisualInfo^.visual,
+    CWColormap or CWEventMask or CWBorderPixel or CWBackPixel, @WindowAttribsInit
   );
+  XSetStandardProperties(Display, WindowHandle, 'Window Title', 'LinuxWindow', None, nil, 0, nil);
   XSelectInput(Display, WindowHandle, ExposureMask or KeyPressMask);
+  //Maximize;
+  //Fullscreen;
+  Windowed;
   XMapWindow(Display, WindowHandle);
 end;
 
 procedure FreeWindow;
 begin
+  XDestroyWindow(Display, WindowHandle);
   XCloseDisplay(Display);
 end;
 
 procedure Loop;
   var Event: TXEvent;
+  var WindowAttribs: TXWindowAttributes;
 begin
   while (true) do
   begin
     XNextEvent(Display, @Event);
     if (Event._type = Expose) then
     begin
-      //XFillRectangle(Display, Window, DefaultGC(Display, Screen), 20, 20, 10, 10);
-      //XDrawString(Display, Window, DefaultGC(Display, Screen), 10, 50, Msg, Length(Msg));
+      XGetWindowAttributes(Display, WindowHandle, @WindowAttribs);
+      XFillRectangle(Display, WindowHandle, DefaultGC(Display, Screen), 0, 0, WindowAttribs.width, WindowAttribs.height);
     end;
     if (Event._type = KeyPress) then Break;
   end;
