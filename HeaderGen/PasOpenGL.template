@@ -204,6 +204,16 @@ begin
   ReleaseDC(TmpWindow, glSharedDC);
   DestroyWindow(TmpWindow);
 end;
+{$elseif defined(LINUX)}
+procedure LinuxInit;
+begin
+  LoadCommands;
+end;
+
+procedure LinuxFin;
+begin
+
+end;
 {$endif}
 
 procedure LoadOpenGL;
@@ -211,6 +221,8 @@ begin
   Lib := LibOpen(LibGL);
 {$if defined(WINDOWS)}
   WinInit;
+{$elseif defined(LINUX)}
+  LinuxInit;
 {$endif}
 end;
 
@@ -218,6 +230,8 @@ procedure UnloadOpenGL;
 begin
 {$if defined(WINDOWS)}
   WinFin;
+{$elseif defined(LINUX)}
+  LinuxFin;
 {$endif}
   if Lib <> 0 then LibClose(Lib);
   Lib := 0;
