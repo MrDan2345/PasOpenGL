@@ -585,7 +585,7 @@ begin
     end
     else if BaseType = 'Bool' then
     begin
-      BaseType := 'Boolean';
+      BaseType := 'Longbool';
     end;
   end;
   if BaseType = 'int8_t' then

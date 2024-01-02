@@ -8,6 +8,10 @@ uses
   {$ENDIF}{$ENDIF}
   {$if defined(WINDOWS)}
   Windows,
+  {$elseif defined(LINUX)}
+  X,
+  XLib,
+  XUtil,
   {$endif}
   Classes,
   CommonUtils,
@@ -21,10 +25,16 @@ type TVertex = packed record
   Color: TUVec4;
 end;
 
+{$if defined(WINDOWS)}
 var WindowHandle: HWND;
 var AppRunning: Boolean;
 var Context: HGLRC;
 var DC: HDC;
+{$elseif defined(LINUX)}
+var Display: PDisplay;
+var Screen: Int32;
+var WindowHandle: TWindow;
+{$endif}
 var VB: GLUint;
 var IB: GLUint;
 
@@ -82,10 +92,9 @@ begin
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IB);
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, Pointer(0));
-
-  SwapBuffers(DC);
 end;
 
+{$if defined(WINDOWS)}
 function MessageHandler(Wnd: HWnd; Msg: UInt; wParam: WPARAM; lParam: LPARAM): LResult; stdcall;
 begin
   case Msg of
@@ -230,18 +239,75 @@ begin
     begin
       OnUpdate;
       OnRender;
+      SwapBuffers(DC);
     end
   end;
   ExitCode := 0;
 end;
+{$elseif defined(LINUX)}
+procedure CreateWindow(const W, H: Integer; const Caption: AnsiString = 'PureOGL');
+  var Visual: PVisual;
+  var Attribs: TXSetWindowAttributes;
+  var x, y, sw, sh, sn: Int32;
+  var s: PScreen;
+  var rwnd, pwnd, cwnd: TWindow;
+  var rx, ry, rw, rh, rb, rd: Int32;
+  var nc: UInt32;
+begin
+
+  Display := XOpenDisplay(':0.0');
+  sn := ScreenCount(Display);
+  WriteLn(sn);
+  Screen := DefaultScreen(Display);
+  XGetGeometry(Display, RootWindow(Display, Screen), @rwnd, @rx, @ry, @rw, @rh, @rb, @rd);
+  XQueryTree(Display, RootWindow(Display, Screen), @rwnd, @pwnd, @cwnd, @nc);
+  s := ScreenOfDisplay(Display, 0);
+  WriteLn(s^.width);
+  Visual := DefaultVisual(Display, Screen);
+  Attribs := Default(TXSetWindowAttributes);
+  Attribs.background_pixel := XWhitePixel(Display, Screen);
+  sw := DisplayWidth(Display, Screen);
+  sh := DisplayHeight(Display, Screen);
+  x := (sw - W) div 2;
+  y := (sh - H) div 2;
+  WindowHandle := XCreateWindow(
+    Display, RootWindow(Display, Screen), x, y, W, H, 1,
+    DefaultDepth(Display, Screen), InputOutput, Visual,
+    CWBackPixel, @Attribs
+  );
+  XSelectInput(Display, WindowHandle, ExposureMask or KeyPressMask);
+  XMapWindow(Display, WindowHandle);
+end;
+
+procedure FreeWindow;
+begin
+  XCloseDisplay(Display);
+end;
+
+procedure Loop;
+  var Event: TXEvent;
+begin
+  while (true) do
+  begin
+    XNextEvent(Display, @Event);
+    if (Event._type = Expose) then
+    begin
+      //XFillRectangle(Display, Window, DefaultGC(Display, Screen), 20, 20, 10, 10);
+      //XDrawString(Display, Window, DefaultGC(Display, Screen), 10, 50, Msg, Length(Msg));
+    end;
+    if (Event._type = KeyPress) then Break;
+  end;
+end;
+{$endif}
 
 begin
+
   CreateWindow(800, 600);
-  CreateDevice;
-  Initialize;
+  //CreateDevice;
+  //Initialize;
   Loop;
-  Finalize;
-  FreeDevice;
+  //Finalize;
+  //FreeDevice;
   FreeWindow;
 end.
 

@@ -10,3 +10,6 @@
 backup/
 lib/
 *.~*
+
+HeaderGen/xml/
+PasOpenGL.pas
