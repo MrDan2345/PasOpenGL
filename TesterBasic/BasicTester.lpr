@@ -25,16 +25,6 @@ type TVertex = packed record
   Color: TUVec4;
 end;
 
-{$if defined(WINDOWS)}
-var WindowHandle: HWND;
-var AppRunning: Boolean;
-var Context: HGLRC;
-var DC: HDC;
-{$elseif defined(LINUX)}
-var Display: PDisplay;
-var Screen: Int32;
-var WindowHandle: TWindow;
-{$endif}
 var VB: GLUint;
 var IB: GLUint;
 
@@ -56,11 +46,18 @@ begin
   glGenBuffers(1, @IB);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IB);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, SizeOf(Word) * 6, @Indices, GL_STATIC_DRAW);
+  //glClearColor(0.5, 0.5, 0.5, 1);
+  //glClearDepth(1);
+  //glEnable(GL_TEXTURE_2D);
+  //glShadeModel(GL_SMOOTH);
+  //glDisable(GL_CULL_FACE);
+  //glEnable(GL_BLEND);
 end;
 
 procedure Finalize;
 begin
-
+  glDeleteBuffers(1, @VB);
+  glDeleteBuffers(1, @IB);
 end;
 
 procedure OnUpdate;
@@ -95,6 +92,10 @@ begin
 end;
 
 {$if defined(WINDOWS)}
+var WindowHandle: HWND;
+var AppRunning: Boolean;
+var Context: HGLRC;
+var DC: HDC;
 function MessageHandler(Wnd: HWnd; Msg: UInt; wParam: WPARAM; lParam: LPARAM): LResult; stdcall;
 begin
   case Msg of
@@ -184,7 +185,7 @@ begin
   DestroyWindow(WindowHandle);
 end;
 
-procedure CreateDevice;
+procedure CreateGL;
   var pfd: TPixelFormatDescriptor;
   var pf: Integer;
   var R: TRect;
@@ -195,7 +196,7 @@ begin
   pfd.nVersion := 1;
   pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
   pfd.iPixelType := PFD_TYPE_RGBA;
-  pfd.cColorBits := 32;
+  pfd.cColorBits := 24;
   pfd.cAlphaBits := 8;
   pfd.cDepthBits := 16;
   pfd.iLayerType := PFD_MAIN_PLANE;
@@ -205,15 +206,9 @@ begin
   wglMakeCurrent(DC, Context);
   GetClientRect(WindowHandle, @R);
   glViewport(0, 0, R.Right - R.Left, R.Bottom - R.Top);
-  glClearColor(0.5, 0.5, 0.5, 1);
-  glClearDepth(1);
-  glEnable(GL_TEXTURE_2D);
-  glShadeModel(GL_SMOOTH);
-  glDisable(GL_CULL_FACE);
-  glEnable(GL_BLEND);
 end;
 
-procedure FreeDevice;
+procedure FreeGL;
 begin
   wglMakeCurrent(DC, Context);
   wglDeleteContext(Context);
@@ -245,6 +240,11 @@ begin
   ExitCode := 0;
 end;
 {$elseif defined(LINUX)}
+var Display: PDisplay;
+var Screen: Int32;
+var WindowHandle: TWindow;
+var VisualInfo: PTXVisualInfo;
+var Context: TGLXContext;
 const _NET_WM_STATE_REMOVE = 0;
 const _NET_WM_STATE_ADD = 1;
 const _NET_WM_STATE_TOGGLE = 2;
@@ -276,12 +276,24 @@ procedure CreateWindow(const W, H: Integer; const Caption: AnsiString = 'PureOGL
   end;
   procedure Windowed;
     var PropAtom: array of TAtom;
+    var Res: Int32;
     const XA_ATOM = 4;
   begin
     PropAtom := [
-      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_NOTIFICATION', False),
-      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_SPLASH', False),
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_DESKTOP', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_DOCK', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_TOOLBAR', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_MENU', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_UTILITY', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_SPLASH', False)
       XInternAtom(Display, '_NET_WM_WINDOW_TYPE_DIALOG', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_DROPDOWN_MENU', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_POPUP_MENU', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_TOOLTIP', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_NOTIFICATION', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_COMBO', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_DND', False)
+      //XInternAtom(Display, '_NET_WM_WINDOW_TYPE_NORMAL', False)
     ];
     XChangeProperty(
       Display, WindowHandle, XInternAtom(Display, '_NET_WM_WINDOW_TYPE', False),
@@ -289,7 +301,6 @@ procedure CreateWindow(const W, H: Integer; const Caption: AnsiString = 'PureOGL
     );
   end;
   var VisualAttribs: array of Int32;
-  var VisualInfo: PTXVisualInfo;
   var ColorMap: TColormap;
   var WindowAttribsInit: TXSetWindowAttributes;
 begin
@@ -302,10 +313,6 @@ begin
   Screen := DefaultScreen(Display);
   VisualAttribs := [
     GLX_RGBA, GLX_DEPTH_SIZE, 24,
-    GLX_RED_SIZE, 8,
-    GLX_GREEN_SIZE, 8,
-    GLX_BLUE_SIZE, 8,
-    GLX_ALPHA_SIZE, 8,
     GLX_DOUBLEBUFFER, None
   ];
   VisualInfo := glXChooseVisual(Display, 0, @VisualAttribs[0]);
@@ -313,20 +320,17 @@ begin
   WindowAttribsInit := Default(TXSetWindowAttributes);
   WindowAttribsInit.colormap := ColorMap;
   WindowAttribsInit.event_mask := ExposureMask or KeyPressMask;
-  WindowAttribsInit.background_pixel := XWhitePixel(Display, Screen);
-  WindowAttribsInit.border_pixel := 0;
-  WindowAttribsInit.background_pixel := 0;
   WindowHandle := XCreateWindow(
     Display, RootWindow(Display, Screen), 0, 0, W, H, 1,
     DefaultDepth(Display, Screen), InputOutput, VisualInfo^.visual,
-    CWColormap or CWEventMask or CWBorderPixel or CWBackPixel, @WindowAttribsInit
+    CWColormap or CWEventMask, @WindowAttribsInit
   );
   XSetStandardProperties(Display, WindowHandle, 'Window Title', 'LinuxWindow', None, nil, 0, nil);
   XSelectInput(Display, WindowHandle, ExposureMask or KeyPressMask);
-  //Maximize;
-  //Fullscreen;
   Windowed;
   XMapWindow(Display, WindowHandle);
+  //Maximize;
+  //Fullscreen;
 end;
 
 procedure FreeWindow;
@@ -335,31 +339,56 @@ begin
   XCloseDisplay(Display);
 end;
 
+procedure CreateGL;
+begin
+  Context := glXCreateContext(Display, VisualInfo, nil, GL_TRUE);
+  glXMakeCurrent(Display, WindowHandle, Context);
+end;
+
+procedure FreeGL;
+begin
+  glXDestroyContext(Display, Context);
+end;
+
 procedure Loop;
   var Event: TXEvent;
   var WindowAttribs: TXWindowAttributes;
+  var Running: Boolean;
 begin
-  while (true) do
+  Running := True;
+  while Running do
   begin
-    XNextEvent(Display, @Event);
-    if (Event._type = Expose) then
+    if (XCheckMaskEvent(Display, ExposureMask or KeyPressMask, @Event)) then
     begin
-      XGetWindowAttributes(Display, WindowHandle, @WindowAttribs);
-      XFillRectangle(Display, WindowHandle, DefaultGC(Display, Screen), 0, 0, WindowAttribs.width, WindowAttribs.height);
+      case Event._type of
+        Expose:
+        begin
+          XGetWindowAttributes(Display, WindowHandle, @WindowAttribs);
+          glViewport(0, 0, WindowAttribs.width, WindowAttribs.height);
+        end;
+        KeyPress:
+        begin
+          Running := False;
+        end;
+      end;
+    end
+    else
+    begin
+      OnUpdate;
+      OnRender;
+      glXSwapBuffers(Display, WindowHandle);
     end;
-    if (Event._type = KeyPress) then Break;
   end;
 end;
 {$endif}
 
 begin
-
   CreateWindow(800, 600);
-  //CreateDevice;
-  //Initialize;
+  CreateGL;
+  Initialize;
   Loop;
-  //Finalize;
-  //FreeDevice;
+  Finalize;
+  FreeGL;
   FreeWindow;
 end.
 
