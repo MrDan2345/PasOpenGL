@@ -7,8 +7,12 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, PasOpenGL,
+  LCLType, LCLIntf, InterfaceBase, StdCtrls,
 {$if defined(WINDOWS)}
   Windows,
+{$elseif defined(LINUX)}
+  X, XLib, XUtil,
+  gdk2x, gtk2,
 {$endif}
   CommonUtils;
 
@@ -18,13 +22,18 @@ type
 
   TForm1 = class(TForm)
     Timer1: TTimer;
+    procedure FormActivate(Sender: TObject);
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
-    procedure FormCreate(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
   private
 {$if defined(WINDOWS)}
     var RenderContext: HGLRC;
     var DeviceContext: HDC;
+{$elseif defined(LINUX)}
+    var Display: PDisplay;
+    var VisualInfo: PTXVisualInfo;
+    var Context: TGLXContext;
+    function NativeHandle: TWindow;
 {$endif}
     var VertexArray: TGLuint;
     var VertexBuffer: TGLuint;
@@ -36,6 +45,9 @@ type
 {$if defined(WINDOWS)}
     procedure WinInitializeOpenGL;
     procedure WinFinalizeOpenGL;
+{$elseif defined(LINUX)}
+    procedure LinuxInitializeOpenGL;
+    procedure LinuxFinalizeOpenGL;
 {$endif}
     procedure InitializeOpenGL;
     procedure FinalizeOpenGL;
@@ -74,6 +86,8 @@ begin
 
 {$if defined(WINDOWS)}
   SwapBuffers(DeviceContext);
+{$elseif defined(LINUX)}
+  glXSwapBuffers(Display, NativeHandle);
 {$endif}
 end;
 
@@ -135,12 +149,47 @@ begin
   wglDeleteContext(RenderContext);
   ReleaseDC(Handle, DeviceContext);
 end;
+{$elseif defined(LINUX)}
+function TForm1.NativeHandle: TWindow;
+  function AsPtr(const Address: PtrUInt): Pointer;
+    var Ptr: Pointer absolute Address;
+  begin
+    Result := Ptr;
+  end;
+  var Widget: PGtkWidget;
+begin
+  Widget := PGtkWidget(AsPtr(Handle));
+  if not Assigned(Widget) then Exit(0);
+  if not Assigned(Widget^.window) then Exit(0);
+  Result := GDK_WINDOW_XWINDOW(Widget^.window);
+end;
+
+procedure TForm1.LinuxInitializeOpenGL;
+  var VisualAttribs: array of Int32;
+begin
+  Display := XOpenDisplay(nil);
+  VisualAttribs := [
+    GLX_RGBA, GLX_DEPTH_SIZE, 24,
+    GLX_DOUBLEBUFFER, None
+  ];
+  VisualInfo := glXChooseVisual(Display, DefaultScreen(Display), @VisualAttribs[0]);
+  Context := glXCreateContext(Display, VisualInfo, nil, GL_TRUE);
+  glXMakeCurrent(Display, NativeHandle, Context);
+end;
+
+procedure TForm1.LinuxFinalizeOpenGL;
+begin
+  glXDestroyContext(Display, Context);
+  XCloseDisplay(Display);
+end;
 {$endif}
 
 procedure TForm1.InitializeOpenGL;
 begin
   {$if defined(WINDOWS)}
   WinInitializeOpenGL;
+  {$elseif defined(LINUX)}
+  LinuxInitializeOpenGL;
   {$endif}
 end;
 
@@ -148,6 +197,8 @@ procedure TForm1.FinalizeOpenGL;
 begin
   {$if defined(WINDOWS)}
   WinFinalizeOpenGL;
+  {$elseif defined(LINUX)}
+  LinuxFinalizeOpenGL;
   {$endif}
 end;
 
@@ -249,19 +300,20 @@ begin
   glDeleteBuffers(1, @VertexBuffer);
 end;
 
-procedure TForm1.FormCreate(Sender: TObject);
-begin
-  InitializeOpenGL;
-  PrintInfo;
-  Initialize;
-  Timer1.Enabled := True;
-end;
-
 procedure TForm1.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   Timer1.Enabled := False;
   Finalize;
   FinalizeOpenGL;
+end;
+
+procedure TForm1.FormActivate(Sender: TObject);
+begin
+  if Timer1.Enabled then Exit;;
+  InitializeOpenGL;
+  PrintInfo;
+  Initialize;
+  Timer1.Enabled := True;
 end;
 
 end.
