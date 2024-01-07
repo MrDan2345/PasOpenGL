@@ -8,11 +8,4 @@ object Form1: TForm1
   LCLVersion = '3.99.0.0'
   OnActivate = FormActivate
   OnClose = FormClose
-  object Timer1: TTimer
-    Enabled = False
-    Interval = 1
-    OnTimer = Timer1Timer
-    Left = 7
-    Top = 7
-  end
 end
