@@ -7,17 +7,11 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, PasOpenGL,
-  CommonUtils, MediaUtils, Windows;
+  CommonUtils, MediaUtils, Setup;
 
 type
-  TForm1 = class(TForm)
-    Timer1: TTimer;
-    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
-    procedure FormCreate(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
+  TForm1 = class(TCommonForm)
   private
-    var RenderContext: HGLRC;
-    var DeviceContext: HDC;
     var VertexArray: TGLuint;
     var VertexBuffer: TGLuint;
     var IndexBuffer: TGLuint;
@@ -28,141 +22,61 @@ type
     var Texture: TGLuint;
     var UniformTex0: TGLint;
     var TaskLoadTexture: specialize TUTask<TGLuint>;
-    procedure Tick;
-    procedure InitializeOpenGL;
-    procedure FinalizeOpenGL;
-    procedure PrintInfo;
-    procedure Initialize;
-    procedure Finalize;
     procedure ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
     function TFLoadTexture(const Args: array of const): TGLuint;
   public
-
+    procedure Initialize; override;
+    procedure Finalize; override;
+    procedure Tick; override;
   end;
 
-var
-  Form1: TForm1;
+var Form1: TForm1;
 
 implementation
 
 {$R *.lfm}
 
-procedure TForm1.Timer1Timer(Sender: TObject);
+procedure TForm1.ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
 begin
-  if TaskLoadTexture.IsComplete then
-  begin
-    Texture := TaskLoadTexture.TaskResult;
-    TaskLoadTexture.Reset;
+  case ImageFormat of
+    uif_g8: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_BYTE; Exit; end;
+    uif_g16: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_SHORT; Exit; end;
+    uif_g8a8: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_BYTE; Exit; end;
+    uif_g16a16: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_SHORT; Exit; end;
+    uif_r8g8b8: begin Format := GL_RGB; DataType := GL_UNSIGNED_BYTE; Exit; end;
+    uif_r16g16b16: begin Format := GL_RGB; DataType := GL_UNSIGNED_SHORT; Exit; end;
+    uif_r8g8b8a8: begin Format := GL_RGBA; DataType := GL_UNSIGNED_BYTE; Exit; end;
+    uif_r16g16b16a16: begin Format := GL_RGBA; DataType := GL_UNSIGNED_SHORT; Exit; end;
+    uif_r32g32b32_f: begin Format := GL_RGB; DataType := GL_FLOAT; Exit; end;
   end;
-  Tick;
-  SwapBuffers(DeviceContext);
+  Format := 0;
+  DataType := 0;
 end;
 
-procedure TForm1.Tick;
-  var W, V, P, WVP: TUMat;
+function TForm1.TFLoadTexture(const Args: array of const): TGLuint;
+  var f: String;
+  var Image: TUImageDataShared;
+  var TextureFormat, TextureType: TGLenum;
 begin
-  W := TUMat.RotationY(((GetTickCount mod 4000) / 4000) * UTwoPi);
-  v := TUMat.View(TUVec3.Make(0, 1.5, -2), TUVec3.Zero, TUVec3.Make(0, 1, 0));
-  P := TUMat.Proj(UPi * 0.5, ClientWidth / ClientHeight, 0.1, 100);
-  WVP := W * V * P;
-
-  glViewport(0, 0, ClientWidth, ClientHeight);
-  glClearColor(0.4, 1, 0.8, 1);
-  //glClearDepth(1);
-  glClear(GL_COLOR_BUFFER_BIT);// or GL_DEPTH_BUFFER_BIT);
-
-  glBindVertexArray(VertexArray);
-  glUseProgram(Shader);
-  glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
-  if (Texture > 0) then
-  begin
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, Texture);
-    glUniform1i(UniformTex0, 0);
-  end;
-  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, nil);
-  //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-end;
-
-procedure TForm1.InitializeOpenGL;
-  var pfd: TPixelFormatDescriptor;
-  var pf: Integer;
-  var pfn: GLuint;
-  var FormatAttribs: TwglAttribs;
-  var ContextAttribs: TwglAttribs;
-begin
-  DeviceContext := GetDC(Handle);
-  FormatAttribs[WGL_DRAW_TO_WINDOW_ARB] := GL_TRUE;
-  FormatAttribs[WGL_SUPPORT_OPENGL_ARB] := GL_TRUE;
-  FormatAttribs[WGL_ACCELERATION_ARB] := WGL_FULL_ACCELERATION_ARB;
-  FormatAttribs[WGL_COLOR_BITS_ARB] := 24;
-  FormatAttribs[WGL_ALPHA_BITS_ARB] := 8;
-  FormatAttribs[WGL_DEPTH_BITS_ARB] := 24;
-  FormatAttribs[WGL_STENCIL_BITS_ARB] := 8;
-  FormatAttribs[WGL_DOUBLE_BUFFER_ARB] := GL_TRUE;
-  FormatAttribs[WGL_SAMPLE_BUFFERS_ARB] := GL_TRUE;
-  FormatAttribs[WGL_SAMPLES_ARB] := 8;
-  pfn := 1; pf := 0;
-  if not wglChoosePixelFormatARB(DeviceContext, FormatAttribs.Data, nil, 1, @pf, @pfn) then
-  begin
-    WriteLn(glGetError);
-    pfn := 0;
-  end;
-  if (pfn = 0) then
-  begin
-    UClear(pfd, SizeOf(pfd));
-    pfd.nSize := SizeOf(pfd);
-    pfd.nVersion := 1;
-    pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
-    pfd.iPixelType := PFD_TYPE_RGBA;
-    pfd.cColorBits := 32;
-    pfd.cAlphaBits := 8;
-    pfd.cDepthBits := 16;
-    pfd.iLayerType := PFD_MAIN_PLANE;
-    pf := ChoosePixelFormat(DeviceContext, @pfd);
-  end;
-  SetPixelFormat(DeviceContext, pf, @pfd);
-  //ContextAttribs[WGL_CONTEXT_MAJOR_VERSION_ARB] := 3;
-  //ContextAttribs[WGL_CONTEXT_MINOR_VERSION_ARB] := 3;
-  //ContextAttribs[WGL_CONTEXT_FLAGS_ARB] := GL_CONTEXT_FLAG_DEBUG_BIT;
-  //ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
-  //ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
-  ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
-  RenderContext := wglCreateContextAttribsARB(DeviceContext, glSharedContext, ContextAttribs.Data);
-  if RenderContext = 0 then
-  begin
-    WriteLn(glGetError);
-  end;
-  wglMakeCurrent(DeviceContext, RenderContext);
-end;
-
-procedure TForm1.FinalizeOpenGL;
-begin
-  wglDeleteContext(RenderContext);
-  ReleaseDC(Handle, DeviceContext);
-end;
-
-procedure TForm1.PrintInfo;
-  var s: String;
-  var i, n: TGLint;
-begin
-  s := PAnsiChar(glGetString(GL_VERSION));
-  WriteLn('OpenGL Version: ', s);
-  glGetIntegerv(GL_MAJOR_VERSION, @i);
-  s := IntToStr(i);
-  glGetIntegerv(GL_MINOR_VERSION, @i);
-  s += '.' + IntToStr(i);
-  WriteLn(s);
-  s := PAnsiChar(glGetString(GL_VENDOR));
-  WriteLn('Vendor: ', s);
-  s := PAnsiChar(glGetString(GL_RENDERER));
-  WriteLn('Renderer: ', s);
-  glGetIntegerv(GL_NUM_EXTENSIONS, @n);
-  for i := 0 to n - 1 do
-  begin
-    s := PAnsiChar(glGetStringi(GL_EXTENSIONS, i));
-    WriteLn(s);
-  end;
+  if Length(Args) < 1 then Exit(0);
+  f := AnsiString(Args[0].VAnsiString);
+  Image := ULoadImageData(f);
+  if not Image.IsValid then Exit(0);
+  MakeCurrentShared;
+  ImageFormatToGL(Image.Ptr.Format, TextureFormat, TextureType);
+  glGenTextures(1, @Result);
+  glBindTexture(GL_TEXTURE_2D, Result);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(
+    GL_TEXTURE_2D, 0, GL_RGB,
+    Image.Ptr.Width, Image.Ptr.Height, 0,
+    TextureFormat, TextureType, Image.Ptr.Data
+  );
+  glGenerateMipmap(GL_TEXTURE_2D);
+  glFinish();
 end;
 
 procedure TForm1.Initialize;
@@ -242,67 +156,39 @@ end;
 
 procedure TForm1.Finalize;
 begin
-  glDeleteTextures(1, @Texture);
+  if (Texture > 0) then glDeleteTextures(1, @Texture);
   glDeleteProgram(Shader);
   glDeleteBuffers(1, @VertexBuffer);
 end;
 
-procedure TForm1.ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
+procedure TForm1.Tick;
+  var W, V, P, WVP: TUMat;
 begin
-  case ImageFormat of
-    uif_g8: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_BYTE; Exit; end;
-    uif_g16: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_SHORT; Exit; end;
-    uif_g8a8: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_BYTE; Exit; end;
-    uif_g16a16: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_SHORT; Exit; end;
-    uif_r8g8b8: begin Format := GL_RGB; DataType := GL_UNSIGNED_BYTE; Exit; end;
-    uif_r16g16b16: begin Format := GL_RGB; DataType := GL_UNSIGNED_SHORT; Exit; end;
-    uif_r8g8b8a8: begin Format := GL_RGBA; DataType := GL_UNSIGNED_BYTE; Exit; end;
-    uif_r16g16b16a16: begin Format := GL_RGBA; DataType := GL_UNSIGNED_SHORT; Exit; end;
-    uif_r32g32b32_f: begin Format := GL_RGB; DataType := GL_FLOAT; Exit; end;
+  if TaskLoadTexture.IsComplete then
+  begin
+    Texture := TaskLoadTexture.TaskResult;
+    TaskLoadTexture.Reset;
   end;
-  Format := 0;
-  DataType := 0;
-end;
+  W := TUMat.RotationY(((GetTickCount64 mod 4000) / 4000) * UTwoPi);
+  v := TUMat.View(TUVec3.Make(0, 1.5, -2), TUVec3.Zero, TUVec3.Make(0, 1, 0));
+  P := TUMat.Proj(UPi * 0.5, ClientWidth / ClientHeight, 0.1, 100);
+  WVP := W * V * P;
 
-function TForm1.TFLoadTexture(const Args: array of const): TGLuint;
-  var f: String;
-  var Image: TUImageDataShared;
-  var TextureFormat, TextureType: TGLenum;
-begin
-  if Length(Args) < 1 then Exit(0);
-  f := AnsiString(Args[0].VAnsiString);
-  Image := ULoadImageData(f);
-  if not Image.IsValid then Exit(0);
-  wglMakeCurrent(glSharedDC, glSharedContext);
-  ImageFormatToGL(Image.Ptr.Format, TextureFormat, TextureType);
-  glGenTextures(1, @Result);
-  glBindTexture(GL_TEXTURE_2D, Result);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D(
-    GL_TEXTURE_2D, 0, GL_RGB,
-    Image.Ptr.Width, Image.Ptr.Height, 0,
-    TextureFormat, TextureType, Image.Ptr.Data
-  );
-  glGenerateMipmap(GL_TEXTURE_2D);
-  glFinish();
-end;
-
-procedure TForm1.FormCreate(Sender: TObject);
-begin
-  InitializeOpenGL;
-  PrintInfo;
-  Initialize;
-  Timer1.Enabled := True;
-end;
-
-procedure TForm1.FormClose(Sender: TObject; var CloseAction: TCloseAction);
-begin
-  Timer1.Enabled := False;
-  Finalize;
-  FinalizeOpenGL;
+  glViewport(0, 0, ClientWidth, ClientHeight);
+  glClearColor(0.4, 1, 0.8, 1);
+  //glClearDepth(1);
+  glClear(GL_COLOR_BUFFER_BIT);// or GL_DEPTH_BUFFER_BIT);
+  glBindVertexArray(VertexArray);
+  glUseProgram(Shader);
+  glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
+  if (Texture > 0) then
+  begin
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, Texture);
+    glUniform1i(UniformTex0, 0);
+  end;
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, nil);
+  //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 end;
 
 end.

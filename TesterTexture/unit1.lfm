@@ -1,19 +1,11 @@
 object Form1: TForm1
-  Left = 626
-  Height = 600
-  Top = 248
-  Width = 800
+  Left = 356
+  Height = 480
+  Top = 330
+  Width = 640
   Caption = 'PasOpenGL'
-  DesignTimePPI = 120
-  OnClose = FormClose
-  OnCreate = FormCreate
   Position = poScreenCenter
-  LCLVersion = '2.2.2.0'
-  object Timer1: TTimer
-    Enabled = False
-    Interval = 1
-    OnTimer = Timer1Timer
-    Left = 8
-    Top = 8
-  end
+  LCLVersion = '3.99.0.0'
+  OnActivate = FormActivate
+  OnClose = FormClose
 end

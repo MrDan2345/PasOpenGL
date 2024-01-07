@@ -38,6 +38,8 @@ public
   procedure InitializeOpenGL;
   procedure FinalizeOpenGL;
   procedure PrintInfo;
+  procedure MakeCurrentPrimary;
+  procedure MakeCurrentShared;
   procedure Initialize; virtual;
   procedure Finalize; virtual;
   procedure Tick; virtual;
@@ -156,7 +158,7 @@ begin
     GLX_DOUBLEBUFFER, None
   ];
   VisualInfo := glXChooseVisual(Display, DefaultScreen(Display), @VisualAttribs[0]);
-  Context := glXCreateContext(Display, VisualInfo, nil, GL_TRUE);
+  Context := glXCreateContext(Display, VisualInfo, glSharedContext, GL_TRUE);
   glXMakeCurrent(Display, NativeHandle, Context);
 end;
 
@@ -206,6 +208,24 @@ begin
     s := PAnsiChar(glGetStringi(GL_EXTENSIONS, i));
     WriteLn(s);
   end;
+end;
+
+procedure TCommonForm.MakeCurrentPrimary;
+begin
+{$if defined(WINDOWS)}
+  wglMakeCurrent(DeviceContext, RenderContext);
+{$elseif defined(LINUX)}
+  glXMakeCurrent(Display, NativeHandle, Context);
+{$endif}
+end;
+
+procedure TCommonForm.MakeCurrentShared;
+begin
+{$if defined(WINDOWS)}
+  wglMakeCurrent(glSharedDC, glSharedContext);
+{$elseif defined(LINUX)}
+  glXMakeCurrent(Display, glSharedWindow, glSharedContext);
+{$endif}
 end;
 
 procedure TCommonForm.Initialize;

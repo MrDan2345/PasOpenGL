@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, PasOpenGL,
-  CommonUtils, Setup;
+  CommonUtils, MediaUtils, Setup;
 
 type TForm1 = class(TCommonForm)
 private
