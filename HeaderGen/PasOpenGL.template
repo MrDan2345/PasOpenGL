@@ -51,6 +51,9 @@ interface
 {$if defined(WINDOWS)}
 var glSharedDC: HDC;
 var glSharedContext: HGLRC;
+{$elseif defined(LINUX)}
+var glSharedWindow: TWindow;
+var glSharedContext: TGLXContext;
 {$endif}
 
 implementation
@@ -205,14 +208,38 @@ begin
   DestroyWindow(TmpWindow);
 end;
 {$elseif defined(LINUX)}
+var TmpDisplay: PDisplay;
 procedure LinuxInit;
+  var VisualAttribs: array of Int32;
+  var ColorMap: TColormap;
+  var WindowAttribsInit: TXSetWindowAttributes;
+  var Screen: Int32;
+  var VisualInfo: PTXVisualInfo;
 begin
   LoadCommands;
+  TmpDisplay := XOpenDisplay(nil);
+  Screen := DefaultScreen(TmpDisplay);
+  VisualAttribs := [
+    GLX_RGBA, GLX_DEPTH_SIZE, 24,
+    GLX_DOUBLEBUFFER, None
+  ];
+  VisualInfo := glXChooseVisual(TmpDisplay, 0, @VisualAttribs[0]);
+  ColorMap := XCreateColormap(TmpDisplay, DefaultRootWindow(TmpDisplay), VisualInfo^.visual, AllocNone);
+  WindowAttribsInit := Default(TXSetWindowAttributes);
+  WindowAttribsInit.colormap := ColorMap;
+  glSharedWindow := XCreateWindow(
+    TmpDisplay, RootWindow(TmpDisplay, Screen), 0, 0, 100, 100, 1,
+    DefaultDepth(TmpDisplay, Screen), InputOutput, VisualInfo^.visual,
+    CWColormap, @WindowAttribsInit
+  );
+  glSharedContext := glXCreateContext(TmpDisplay, VisualInfo, nil, GL_TRUE);
 end;
 
 procedure LinuxFin;
 begin
-
+  glXDestroyContext(TmpDisplay, glSharedContext);
+  XDestroyWindow(TmpDisplay, glSharedWindow);
+  XCloseDisplay(TmpDisplay);
 end;
 {$endif}
 
