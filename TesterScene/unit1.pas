@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, PasOpenGL,
-  CommonUtils, MediaUtils, Windows;
+  CommonUtils, MediaUtils, Setup;
 
 type
   TShader = class(TURefClass)
@@ -161,14 +161,8 @@ type
   end;
   type TNodeShared = specialize TUSharedRef<TNode>;
 
-  TForm1 = class(TForm)
-    Timer1: TTimer;
-    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
-    procedure FormCreate(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
+  TForm1 = class(TCommonForm)
   private
-    var RenderContext: HGLRC;
-    var DeviceContext: HDC;
     var UniformWVP: TGLint;
     var Shader: TShaderShared;
     var UniformTex0: TGLint;
@@ -182,19 +176,15 @@ type
     var SkinRemap: specialize TUMap<Pointer, TSkinShared>;
     var MaterialRemap: specialize TUMap<Pointer, TMaterialShared>;
     var NodeRemap: specialize TUMap<Pointer, TNode>;
-    procedure Tick;
-    procedure InitializeOpenGL;
-    procedure FinalizeOpenGL;
-    procedure PrintInfo;
-    procedure Initialize;
-    procedure Finalize;
     procedure ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
     procedure Load(const FileName: String);
   public
+    procedure Initialize; override;
+    procedure Finalize; override;
+    procedure Tick; override;
   end;
 
-var
-  Form1: TForm1;
+var Form1: TForm1;
 
 implementation
 
@@ -679,10 +669,79 @@ begin
   inherited Destroy;
 end;
 
-procedure TForm1.Timer1Timer(Sender: TObject);
+procedure TForm1.ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
 begin
-  Tick;
-  SwapBuffers(DeviceContext);
+  case ImageFormat of
+    uif_g8: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_BYTE; end;
+    uif_g16: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_SHORT; end;
+    uif_g8a8: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_BYTE; end;
+    uif_g16a16: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_SHORT; end;
+    uif_r8g8b8: begin Format := GL_RGB; DataType := GL_UNSIGNED_BYTE; end;
+    uif_r16g16b16: begin Format := GL_RGB; DataType := GL_UNSIGNED_SHORT; end;
+    uif_r8g8b8a8: begin Format := GL_RGBA; DataType := GL_UNSIGNED_BYTE; end;
+    uif_r16g16b16a16: begin Format := GL_RGBA; DataType := GL_UNSIGNED_SHORT; end;
+    uif_r32g32b32_f: begin Format := GL_RGB; DataType := GL_FLOAT; end;
+    else begin Format := 0; DataType := 0; end;
+  end;
+end;
+
+procedure TForm1.Load(const FileName: String);
+  var i: Integer;
+  var Scene: TUSceneDataDAE;
+begin
+  Scene := TUSceneDataDAE.Create([]);
+  try
+    Scene.Load(FileName);
+    SetLength(Textures, Length(Scene.ImageList));
+    for i := 0 to High(Textures) do
+    begin
+      Textures[i] := TTexture.Create(Scene.ImageList[i]);
+      TextureRemap.Add(Scene.ImageList[i], Textures[i]);
+    end;
+    SetLength(Meshes, Length(Scene.MeshList));
+    for i := 0 to High(Meshes) do
+    begin
+      Meshes[i] := TMesh.Create(Scene.MeshList[i]);
+      MeshRemap.Add(Scene.MeshList[i], Meshes[i]);
+    end;
+    SetLength(Skins, Length(Scene.SkinList));
+    for i := 0 to High(Skins) do
+    begin
+      Skins[i] := TSkin.Create(Scene.SkinList[i]);
+      SkinRemap.Add(Scene.SkinList[i], Skins[i]);
+    end;
+    SetLength(Materials, Length(Scene.MaterialList));
+    for i := 0 to High(Materials) do
+    begin
+      Materials[i] := TMaterial.Create(Scene.MaterialList[i]);
+      MaterialRemap.Add(Scene.MaterialList[i], Materials[i]);
+    end;
+    RootNode := TNode.Create(nil, Scene.RootNode);
+    Shader := TShader.AutoShader(Meshes[0].Ptr.Buffers[0].VertexDescriptor);
+    UniformWVP := Shader.Ptr.UniformLocation('WVP');
+    UniformTex0 := Shader.Ptr.UniformLocation('tex0');
+  finally
+    FreeAndNil(Scene);
+  end;
+end;
+
+procedure TForm1.Initialize;
+begin
+  Load('../Assets/siren/siren_anim.dae');
+end;
+
+procedure TForm1.Finalize;
+begin
+  TextureRemap.Clear;
+  MaterialRemap.Clear;
+  SkinRemap.Clear;
+  MeshRemap.Clear;
+  NodeRemap.Clear;
+  RootNode := nil;
+  Skins := nil;
+  Meshes := nil;
+  Shader := nil;
+  Textures := nil;
 end;
 
 procedure TForm1.Tick;
@@ -776,178 +835,6 @@ begin
     DrawNode(RootNode.Ptr);
   end;
   glBindVertexArray(0);
-end;
-
-procedure TForm1.InitializeOpenGL;
-  var pfd: TPixelFormatDescriptor;
-  var pf: Integer;
-  var pfn: GLuint;
-  var FormatAttribs: TwglAttribs;
-  var ContextAttribs: TwglAttribs;
-begin
-  DeviceContext := GetDC(Handle);
-  FormatAttribs[WGL_DRAW_TO_WINDOW_ARB] := GL_TRUE;
-  FormatAttribs[WGL_SUPPORT_OPENGL_ARB] := GL_TRUE;
-  FormatAttribs[WGL_ACCELERATION_ARB] := WGL_FULL_ACCELERATION_ARB;
-  FormatAttribs[WGL_COLOR_BITS_ARB] := 24;
-  FormatAttribs[WGL_ALPHA_BITS_ARB] := 8;
-  FormatAttribs[WGL_DEPTH_BITS_ARB] := 24;
-  FormatAttribs[WGL_STENCIL_BITS_ARB] := 8;
-  FormatAttribs[WGL_DOUBLE_BUFFER_ARB] := GL_TRUE;
-  FormatAttribs[WGL_SAMPLE_BUFFERS_ARB] := GL_TRUE;
-  FormatAttribs[WGL_SAMPLES_ARB] := 8;
-  pfn := 1; pf := 0;
-  if not wglChoosePixelFormatARB(DeviceContext, FormatAttribs.Data, nil, 1, @pf, @pfn) then
-  begin
-    WriteLn(glGetError);
-    pfn := 0;
-  end;
-  if (pfn = 0) then
-  begin
-    UClear(pfd, SizeOf(pfd));
-    pfd.nSize := SizeOf(pfd);
-    pfd.nVersion := 1;
-    pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
-    pfd.iPixelType := PFD_TYPE_RGBA;
-    pfd.cColorBits := 32;
-    pfd.cAlphaBits := 8;
-    pfd.cDepthBits := 16;
-    pfd.iLayerType := PFD_MAIN_PLANE;
-    pf := ChoosePixelFormat(DeviceContext, @pfd);
-  end;
-  SetPixelFormat(DeviceContext, pf, @pfd);
-  //ContextAttribs[WGL_CONTEXT_MAJOR_VERSION_ARB] := 3;
-  //ContextAttribs[WGL_CONTEXT_MINOR_VERSION_ARB] := 3;
-  //ContextAttribs[WGL_CONTEXT_FLAGS_ARB] := GL_CONTEXT_FLAG_DEBUG_BIT;
-  //ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
-  //ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
-  ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
-  RenderContext := wglCreateContextAttribsARB(DeviceContext, glSharedContext, ContextAttribs.Data);
-  if RenderContext = 0 then
-  begin
-    WriteLn(glGetError);
-  end;
-  wglMakeCurrent(DeviceContext, RenderContext);
-end;
-
-procedure TForm1.FinalizeOpenGL;
-begin
-  wglDeleteContext(RenderContext);
-  ReleaseDC(Handle, DeviceContext);
-end;
-
-procedure TForm1.PrintInfo;
-  var s: String;
-  var i, n: TGLint;
-begin
-  s := PAnsiChar(glGetString(GL_VERSION));
-  WriteLn('OpenGL Version: ', s);
-  glGetIntegerv(GL_MAJOR_VERSION, @i);
-  s := IntToStr(i);
-  glGetIntegerv(GL_MINOR_VERSION, @i);
-  s += '.' + IntToStr(i);
-  WriteLn(s);
-  s := PAnsiChar(glGetString(GL_VENDOR));
-  WriteLn('Vendor: ', s);
-  s := PAnsiChar(glGetString(GL_RENDERER));
-  WriteLn('Renderer: ', s);
-  glGetIntegerv(GL_NUM_EXTENSIONS, @n);
-  for i := 0 to n - 1 do
-  begin
-    s := PAnsiChar(glGetStringi(GL_EXTENSIONS, i));
-    WriteLn(s);
-  end;
-end;
-
-procedure TForm1.Initialize;
-begin
-  //Load('../Assets/siren/siren.dae');
-  Load('../Assets/siren/siren_anim.dae');
-end;
-
-procedure TForm1.Finalize;
-begin
-  TextureRemap.Clear;
-  MaterialRemap.Clear;
-  SkinRemap.Clear;
-  MeshRemap.Clear;
-  NodeRemap.Clear;
-  RootNode := nil;
-  Skins := nil;
-  Meshes := nil;
-  Shader := nil;
-  Textures := nil;
-end;
-
-procedure TForm1.ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
-begin
-  case ImageFormat of
-    uif_g8: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_BYTE; Exit; end;
-    uif_g16: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_SHORT; Exit; end;
-    uif_g8a8: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_BYTE; Exit; end;
-    uif_g16a16: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_SHORT; Exit; end;
-    uif_r8g8b8: begin Format := GL_RGB; DataType := GL_UNSIGNED_BYTE; Exit; end;
-    uif_r16g16b16: begin Format := GL_RGB; DataType := GL_UNSIGNED_SHORT; Exit; end;
-    uif_r8g8b8a8: begin Format := GL_RGBA; DataType := GL_UNSIGNED_BYTE; Exit; end;
-    uif_r16g16b16a16: begin Format := GL_RGBA; DataType := GL_UNSIGNED_SHORT; Exit; end;
-    uif_r32g32b32_f: begin Format := GL_RGB; DataType := GL_FLOAT; Exit; end;
-    else begin Format := 0; DataType := 0; Exit; end;
-  end;
-end;
-
-procedure TForm1.Load(const FileName: String);
-  var i: Integer;
-  var Scene: TUSceneDataDAE;
-begin
-  Scene := TUSceneDataDAE.Create([]);
-  try
-    Scene.Load(FileName);
-    SetLength(Textures, Length(Scene.ImageList));
-    for i := 0 to High(Textures) do
-    begin
-      Textures[i] := TTexture.Create(Scene.ImageList[i]);
-      TextureRemap.Add(Scene.ImageList[i], Textures[i]);
-    end;
-    SetLength(Meshes, Length(Scene.MeshList));
-    for i := 0 to High(Meshes) do
-    begin
-      Meshes[i] := TMesh.Create(Scene.MeshList[i]);
-      MeshRemap.Add(Scene.MeshList[i], Meshes[i]);
-    end;
-    SetLength(Skins, Length(Scene.SkinList));
-    for i := 0 to High(Skins) do
-    begin
-      Skins[i] := TSkin.Create(Scene.SkinList[i]);
-      SkinRemap.Add(Scene.SkinList[i], Skins[i]);
-    end;
-    SetLength(Materials, Length(Scene.MaterialList));
-    for i := 0 to High(Materials) do
-    begin
-      Materials[i] := TMaterial.Create(Scene.MaterialList[i]);
-      MaterialRemap.Add(Scene.MaterialList[i], Materials[i]);
-    end;
-    RootNode := TNode.Create(nil, Scene.RootNode);
-    Shader := TShader.AutoShader(Meshes[0].Ptr.Buffers[0].VertexDescriptor);
-    UniformWVP := Shader.Ptr.UniformLocation('WVP');
-    UniformTex0 := Shader.Ptr.UniformLocation('tex0');
-  finally
-    FreeAndNil(Scene);
-  end;
-end;
-
-procedure TForm1.FormCreate(Sender: TObject);
-begin
-  InitializeOpenGL;
-  PrintInfo;
-  Initialize;
-  Timer1.Enabled := True;
-end;
-
-procedure TForm1.FormClose(Sender: TObject; var CloseAction: TCloseAction);
-begin
-  Timer1.Enabled := False;
-  Finalize;
-  FinalizeOpenGL;
 end;
 
 end.
