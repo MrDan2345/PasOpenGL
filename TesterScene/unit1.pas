@@ -818,8 +818,8 @@ procedure TForm1.Tick;
     end;
   end;
 begin
-  W := TUMat.RotationY(((GetTickCount mod 4000) / 4000) * UTwoPi);
-  v := TUMat.View(TUVec3.Make(0, 1.5, -2), TUVec3.Make(0, 1, 0), TUVec3.Make(0, 1, 0));
+  W := TUMat.RotationZ(((GetTickCount mod 4000) / 4000) * UTwoPi);
+  v := TUMat.View(TUVec3.Make(10, 10, 10), TUVec3.Make(0, 0, 5), TUVec3.Make(0, 0, 1));
   P := TUMat.Proj(UPi * 0.3, ClientWidth / ClientHeight, 0.1, 100);
   WVP := W * V * P;
 
