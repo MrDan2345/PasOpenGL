@@ -237,6 +237,7 @@ end;
 
 procedure LinuxFin;
 begin
+  glXMakeCurrent(TmpDisplay, glSharedWindow, glSharedContext);
   glXDestroyContext(TmpDisplay, glSharedContext);
   XDestroyWindow(TmpDisplay, glSharedWindow);
   XCloseDisplay(TmpDisplay);
