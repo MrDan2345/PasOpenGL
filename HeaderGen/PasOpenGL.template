@@ -31,8 +31,7 @@ interface
 {$endif}
 
 {#intf}
-{$if defined(WINDOWS)}
-  type TwglAttribs = record
+  type TGLAttribs = record
   private
     var Attribs: array[0..63] of TGLint;
     procedure Initialize; inline;
@@ -43,10 +42,9 @@ interface
   public
     property Data: PGLint read GetData;
     property Attrib[const Index: TGLint]: TGLint read GetAttrib write SetAttrib; default;
-    class operator Initialize(var v: TwglAttribs);
-    class operator Finalize(var v: TwglAttribs);
-  end;
-{$endif}
+    class operator Initialize(var v: TGLAttribs);
+    class operator Finalize(var v: TGLAttribs);
+  end; 
 
 {$if defined(WINDOWS)}
 var glSharedDC: HDC;
@@ -64,8 +62,7 @@ implementation
   type TLibHandle = LongWord;
 {$endif}
 
-{$if defined(WINDOWS)}
-procedure TwglAttribs.Initialize;
+procedure TGLAttribs.Initialize;
 begin
   {$push}
   {$hints off}
@@ -73,17 +70,17 @@ begin
   {$pop}
 end;
 
-procedure TwglAttribs.Finalize;
+procedure TGLAttribs.Finalize;
 begin
 
 end;
 
-function TwglAttribs.GetData: PGLInt;
+function TGLAttribs.GetData: PGLInt;
 begin
   Result := @Attribs;
 end;
 
-function TwglAttribs.GetAttrib(const Index: TGLint): TGLint;
+function TGLAttribs.GetAttrib(const Index: TGLint): TGLint;
   var i: Integer;
 begin
   for i := 0 to Length(Attribs) shr 1 do
@@ -93,7 +90,7 @@ begin
   Result := 0;
 end;
 
-procedure TwglAttribs.SetAttrib(const Index: TGLint; const Value: TGLint);
+procedure TGLAttribs.SetAttrib(const Index: TGLint; const Value: TGLint);
   var i: Integer;
   var ai: TGLint;
 begin
@@ -109,16 +106,17 @@ begin
   end;
 end;
 
-class operator TwglAttribs.Initialize(var v: TwglAttribs);
+class operator TGLAttribs.Initialize(var v: TGLAttribs);
 begin
   v.Initialize;
 end;
 
-class operator TwglAttribs.Finalize(var v: TwglAttribs);
+class operator TGLAttribs.Finalize(var v: TGLAttribs);
 begin
   v.Finalize;
 end;
 
+{$if defined(WINDOWS)}
 function PlatformLibOpen(Name: PAnsiChar): TLibHandle; stdcall; external 'kernel32.dll' name 'LoadLibraryA';
 function PlatformLibClose(Handle: TLibHandle): Boolean; stdcall; external 'kernel32.dll' name 'FreeLibrary';
 function PlatformLibAddress(Handle: TLibHandle; ProcName: PAnsiChar): Pointer; stdcall; external 'kernel32.dll' name 'GetProcAddress';

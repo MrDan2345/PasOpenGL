@@ -41,30 +41,23 @@ type TMesh = class (TURefClass)
 public
   type TSubset = class
   public
-    var BufferIndex: Int32;
-    var VertexOffset: Int32;
-    var VertexCount: Int32;
-    var IndexOffset: Int32;
-    var IndexCount: Int32;
+    var VertexDescriptor: TUVertexDescriptor;
+    var vb: TGLuint;
+    var VertexBuffer: TGLuint;
+    var VertexSize: TGLuint;
+    var VertexCount: TGluint;
+    var IndexBuffer: TGLuint;
+    var IndexSize: TGLuint;
+    var IndexCount: TGLuint;
+    var IndexFormat: TGLenum;
+    constructor Create(const MeshSubset: TUSceneData.TMeshInterface.TSubset);
+    destructor Destroy; override;
   end;
   type TSubsetList = array of TSubset;
-  type TMeshBuffer = record
-    VertexDescriptor: TUVertexDescriptor;
-    VertexBuffer: TGLuint;
-    VertexSize: TGLuint;
-    VertexCount: TGluint;
-    IndexBuffer: TGLuint;
-    IndexSize: TGLuint;
-    IndexCount: TGLuint;
-    IndexFormat: TGLenum;
-  end;
-  type TMeshBufferList = array of TMeshBuffer;
 private
   var _Subsets: TSubsetList;
-  var _Buffers: TMeshBufferList;
 public
   property Subsets: TSubsetList read _Subsets;
-  property Buffers: TMeshBufferList read _Buffers;
   constructor Create(const MeshData: TUSceneData.TMeshInterface);
   destructor Destroy; override;
   procedure DrawSubset(const Index: Int32);
@@ -75,16 +68,17 @@ type TSkin = class (TURefClass)
 public
   type TSubset = class
   public
-    var BufferIndex: Int32;
-    var VertexOffset: Int32;
+    var VertexBuffer: TGLuint;
+    var VertexCount: TGluint;
+    var VertexSize: UInt32;
+    var WeightCount: Int32;
+    constructor Create(
+      const MeshSubset: TUSceneData.TMeshInterface.TSubset;
+      const SkinSubset: TUSceneData.TSkinInterface.TSubset
+    );
+    destructor Destroy; override;
   end;
   type TSubsetList = array of TSubset;
-  type TSkinBuffer = record
-    VertexBuffer: TGLuint;
-    VertexCount: TGluint;
-    WeightCount: Int32;
-  end;
-  type TSkinBufferList = array of TSkinBuffer;
   type TJoint = record
     Node: String;
     Bind: TUMat;
@@ -93,13 +87,11 @@ public
 private
   var _Mesh: TMesh;
   var _Subsets: TSubsetList;
-  var _Buffers: TSkinBufferList;
   var _Joints: TJointList;
   var _Bind: TUMat;
 public
   property Mesh: TMesh read _Mesh;
   property Subsets: TSubsetList read _Subsets;
-  property Buffers: TSkinBufferList read _Buffers;
   property Joints: TJointList read _Joints;
   property Bind: TUMat read _Bind;
   constructor Create(const SkinData: TUSceneData.TSkinInterface);
@@ -215,6 +207,8 @@ private
   var SkinRemap: specialize TUMap<Pointer, TSkinShared>;
   var MaterialRemap: specialize TUMap<Pointer, TMaterialShared>;
   var NodeRemap: specialize TUMap<Pointer, TNode>;
+  var Shader: TShaderShared;
+  var vb: TGLint;
   procedure ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
   procedure Load(const FileName: String);
 public
@@ -297,7 +291,7 @@ begin
     vs += '  mat4x4 S = ';
     for i := 0 to SkinInfo^.BoneWeights - 1 do
     begin
-      vs += 'bone[in_bone_index[' + IntToStr(i) + ']] * in_bone_weight[' + IntToStr(i) + ']';
+      vs += 'Bone[in_bone_index[' + IntToStr(i) + ']] * in_bone_weight[' + IntToStr(i) + ']';
       if i < SkinInfo^.BoneWeights - 1 then vs += ' + ' else vs += ';'#$D#$A;
     end;
   end;
@@ -406,166 +400,97 @@ begin
   Result := glGetUniformLocation(_Handle, PGLchar(PAnsiChar(UniformName)));
 end;
 
-constructor TMesh.Create(const MeshData: TUSceneData.TMeshInterface);
-  function FindOrCreateBuffer(const VertexDescriptor: TUVertexDescriptor): Int32;
-    var i: Int32;
-  begin
-    for i := 0 to High(_Buffers) do
-    if UCmpVertexDescriptors(_Buffers[i].VertexDescriptor, VertexDescriptor) then
-    begin
-      Exit(i);
-    end;
-    Result := Length(_Buffers);
-    SetLength(_Buffers, Result + 1);
-    _Buffers[Result].VertexDescriptor := VertexDescriptor;
-    _Buffers[Result].VertexSize := UComputeVertexSize(VertexDescriptor);
-    _Buffers[Result].VertexCount := 0;
-    _Buffers[Result].IndexCount := 0;
-  end;
-  var Subset: TSubset;
-  var SubsetId, BufferId, i: Int32;
-  var IndexBuffer: Pointer;
-  var IndexBuffer16: PUInt16Arr absolute IndexBuffer;
-  var IndexBuffer32: PUInt32Arr absolute IndexBuffer;
+constructor TMesh.TSubset.Create(const MeshSubset: TUSceneData.TMeshInterface.TSubset);
 begin
-  SetLength(_Subsets, Length(MeshData.Subsets));
-  for SubsetId := 0 to High(_Subsets) do
+  VertexDescriptor := MeshSubset.VertexDescriptor;
+  VertexCount := MeshSubset.VertexCount;
+  IndexCount := MeshSubset.IndexCount;
+  VertexSize := MeshSubset.VertexSize;
+  IndexSize := MeshSubset.IndexSize;
+  if IndexSize = 4 then
   begin
-    Subset := TSubset.Create;
-    _Subsets[SubsetId] := Subset;
-    BufferId := FindOrCreateBuffer(MeshData.Subsets[SubsetId].VertexDescriptor);
-    Subset.BufferIndex := BufferId;
-    Subset.VertexCount := MeshData.Subsets[SubsetId].VertexCount;
-    Subset.IndexCount := MeshData.Subsets[SubsetId].IndexCount;
-    Subset.VertexOffset := _Buffers[BufferId].VertexCount;
-    Subset.IndexOffset := _Buffers[BufferId].IndexCount;
-    _Buffers[BufferId].VertexCount += Subset.VertexCount;
-    _Buffers[BufferId].IndexCount += Subset.IndexCount;
-  end;
-  for BufferId := 0 to High(_Buffers) do
+    IndexFormat := GL_UNSIGNED_INT;
+  end
+  else
   begin
-    if _Buffers[BufferId].IndexCount < High(UInt16) then
-    begin
-      _Buffers[BufferId].IndexFormat := GL_UNSIGNED_SHORT;
-      _Buffers[BufferId].IndexSize := 2;
-    end
-    else
-    begin
-      _Buffers[BufferId].IndexFormat := GL_UNSIGNED_INT;
-      _Buffers[BufferId].IndexSize := 4;
-    end;
-    glGenBuffers(1, @_Buffers[BufferId].VertexBuffer);
-    glGenBuffers(1, @_Buffers[BufferId].IndexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, _Buffers[BufferId].VertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, _Buffers[BufferId].VertexCount * _Buffers[BufferId].VertexSize, nil, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _Buffers[BufferId].IndexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, _Buffers[BufferId].IndexCount * _Buffers[BufferId].IndexSize, nil, GL_STATIC_DRAW);
-    IndexBuffer := glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
-    for SubsetId := 0 to High(_Subsets) do
-    if _Subsets[SubsetId].BufferIndex = BufferId then
-    begin
-      Subset := _Subsets[SubsetId];
-      glBufferSubData(
-        GL_ARRAY_BUFFER, Subset.VertexOffset,
-        Subset.VertexCount * _Buffers[BufferId].VertexSize,
-        MeshData.Subsets[SubsetId].VertexData
-      );
-      if _Buffers[BufferId].IndexFormat = GL_UNSIGNED_INT then
-      for i := 0 to Subset.IndexCount - 1 do
-      begin
-        IndexBuffer32^[Subset.IndexOffset + i] := (
-          Subset.VertexOffset + MeshData.Subsets[SubsetId].Index[i]
-        );
-      end
-      else
-      for i := 0 to Subset.IndexCount - 1 do
-      begin
-        IndexBuffer16^[Subset.IndexOffset + i] := (
-          Subset.VertexOffset + MeshData.Subsets[SubsetId].Index[i]
-        );
-      end;
-    end;
-    glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+    IndexFormat := GL_UNSIGNED_SHORT;
   end;
+  glGenBuffers(1, @VertexBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
+  glBufferData(GL_ARRAY_BUFFER, VertexCount * VertexSize, MeshSubset.VertexData, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glGenBuffers(1, @IndexBuffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, IndexCount * IndexSize, MeshSubset.IndexData, GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 end;
 
-destructor TMesh.Destroy;
+destructor TMesh.TSubset.Destroy;
+begin
+  glDeleteBuffers(1, @IndexBuffer);
+  glDeleteBuffers(1, @VertexBuffer);
+  inherited Destroy;
+end;
+
+constructor TMesh.Create(const MeshData: TUSceneData.TMeshInterface);
   var i: Int32;
 begin
-  specialize UArrClear<TSubset>(_Subsets);
-  for i := 0 to High(_Buffers) do
+  SetLength(_Subsets, Length(MeshData.Subsets));
+  for i := 0 to High(_Subsets) do
   begin
-    glDeleteBuffers(1, @_Buffers[i].VertexBuffer);
-    glDeleteBuffers(1, @_Buffers[i].IndexBuffer);
+    _Subsets[i] := TSubset.Create(MeshData.Subsets[i]);
   end;
+end;
+
+destructor TMesh.Destroy;
+begin
+  specialize UArrClear<TSubset>(_Subsets);
   inherited Destroy;
 end;
 
 procedure TMesh.DrawSubset(const Index: Int32);
   var Subset: TSubset;
-  var IndexOffset: PtrUInt;
 begin
   Subset := _Subsets[Index];
-  IndexOffset := Subset.IndexOffset * _Buffers[Subset.BufferIndex].IndexSize;
-  glDrawRangeElements(
+  glDrawElements(
     GL_TRIANGLES,
-    Subset.VertexOffset,
-    Subset.VertexOffset + Subset.VertexCount - 1,
     Subset.IndexCount,
-    _Buffers[Subset.BufferIndex].IndexFormat,
-    UIntToPtr(IndexOffset)
+    Subset.IndexFormat,
+    Pointer(0)
   );
 end;
 
+constructor TSkin.TSubset.Create(
+  const MeshSubset: TUSceneData.TMeshInterface.TSubset;
+  const SkinSubset: TUSceneData.TSkinInterface.TSubset);
+begin
+  VertexCount := MeshSubset.VertexCount;
+  VertexSize := SkinSubset.VertexSize;
+  WeightCount := SkinSubset.WeightCount;
+  glGenBuffers(1, @VertexBuffer);
+  glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
+  glBufferData(GL_ARRAY_BUFFER, VertexCount * VertexSize, SkinSubset.VertexData, GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+end;
+
+destructor TSkin.TSubset.Destroy;
+begin
+  glDeleteBuffers(1, @VertexBuffer);
+  inherited Destroy;
+end;
+
 constructor TSkin.Create(const SkinData: TUSceneData.TSkinInterface);
-  function FindOrCreateBuffer(const WeightCount: Int32): Int32;
-    var i: Int32;
-  begin
-    for i := 0 to High(_Buffers) do
-    if _Buffers[i].WeightCount = WeightCount then
-    begin
-      Exit(i);
-    end;
-    i := Length(_Buffers);
-    SetLength(_Buffers, i + 1);
-    _Buffers[i].WeightCount := WeightCount;
-    _Buffers[i].VertexCount := 0;
-    glCreateBuffers(1, @_Buffers[i].VertexBuffer);
-    Result := i;
-  end;
-  var SubsetId, BufferId, JointId: Int32;
-  var Buffer: Pointer;
-  const WeightSize = SizeOf(UInt32) + SizeOf(TUFloat);
+  var SubsetId, JointId: Int32;
 begin
   _Mesh := Form1.MeshRemap.FindValueByKey(SkinData.Mesh).Ptr;
   SetLength(_Subsets, Length(_Mesh.Subsets));
   for SubsetId := 0 to High(_Subsets) do
   begin
-    _Subsets[SubsetId] := TSubset.Create;
-    BufferId := FindOrCreateBuffer(SkinData.Subsets[SubsetId].WeightCount);
-    _Subsets[SubsetId].BufferIndex := BufferId;
-    _Subsets[SubsetId].VertexOffset := _Buffers[BufferId].VertexCount;
-    _Buffers[BufferId].VertexCount += _Mesh.Subsets[SubsetId].VertexCount;
+    _Subsets[SubsetId] := TSubset.Create(
+      SkinData.Mesh.Subsets[SubsetId],
+      SkinData.Subsets[SubsetId]
+    );
   end;
-  for BufferId := 0 to High(_Buffers) do
-  begin
-    glBindBuffer(GL_ARRAY_BUFFER, _Buffers[BufferId].VertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, _Buffers[BufferId].VertexCount * _Buffers[BufferId].WeightCount * WeightSize, nil, GL_STATIC_DRAW);
-    Buffer := glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-    for SubsetId := 0 to High(_Subsets) do
-    if _Subsets[SubsetId].BufferIndex = BufferId then
-    begin
-      Move(
-        SkinData.Subsets[SubsetId].VertexData^,
-        (Buffer + _Subsets[SubsetId].VertexOffset * WeightSize)^,
-        _Mesh.Subsets[SubsetId].VertexCount * _Buffers[BufferId].WeightCount * WeightSize
-      );
-    end;
-    glUnmapBuffer(GL_ARRAY_BUFFER);
-  end;
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
   _Bind := SkinData.ShapeBind;
   SetLength(_Joints, Length(SkinData.Joints));
   for JointId := 0 to High(_Joints) do
@@ -576,13 +501,8 @@ begin
 end;
 
 destructor TSkin.Destroy;
-  var i: Int32;
 begin
   specialize UArrClear<TSubset>(_Subsets);
-  for i := 0 to High(_Buffers) do
-  begin
-    glDeleteBuffers(1, @_Buffers[i].VertexBuffer);
-  end;
   inherited Destroy;
 end;
 
@@ -652,7 +572,7 @@ end;
 constructor TNode.TAttachmentMesh.Create(
   const AttachData: TUSceneData.TAttachmentMesh
 );
-  var SubsetId, BufferId, i: Int32;
+  var SubsetId, i: Int32;
   var Subset: TMesh.TSubset;
   var AttribOffset: Pointer;
   var vd: TUVertexDescriptor;
@@ -678,24 +598,23 @@ begin
   for SubsetId := 0 to High(_Mesh.Subsets) do
   begin
     Subset := _Mesh.Subsets[SubsetId];
-    BufferId := Subset.BufferIndex;
-    vd := _Mesh.Buffers[BufferId].VertexDescriptor;
+    vd := Subset.VertexDescriptor;
     specialize UArrAppend<TShaderShared>(
       _Shaders, TShader.AutoShader(vd)
     );
     glBindVertexArray(_VertexArrays[SubsetId]);
-    glBindBuffer(GL_ARRAY_BUFFER, _Mesh.Buffers[BufferId].VertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, Subset.VertexBuffer);
     AttribOffset := nil;
     for i := 0 to High(vd) do
     begin
       glVertexAttribPointer(
         i, vd[i].DataCount, GL_FLOAT, GL_FALSE,
-        _Mesh.Buffers[BufferId].VertexSize, AttribOffset
+        Subset.VertexSize, AttribOffset
       );
       glEnableVertexAttribArray(i);
       AttribOffset += vd[i].Size;
     end;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _Mesh.Buffers[BufferId].IndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Subset.IndexBuffer);
   end;
   glBindVertexArray(0);
 end;
@@ -707,7 +626,9 @@ begin
 end;
 
 constructor TNode.TAttachmentSkin.Create(const AttachData: TUSceneData.TAttachmentSkin);
-  var SubsetId, SkinBufferId, MeshBufferId, i: Int32;
+  var SubsetId, i: Int32;
+  var MeshSubset: TMesh.TSubset;
+  var SkinSubset: TSkin.TSubset;
   var SkinInfo: TShader.TSkinInfo;
   var AttribOffset: Pointer;
   var vd: TUVertexDescriptor;
@@ -733,40 +654,40 @@ begin
   glGenVertexArrays(Length(_VertexArrays), @_VertexArrays[0]);
   for SubsetId := 0 to High(_Skin.Subsets) do
   begin
-    SkinBufferId := _Skin.Subsets[SubsetId].BufferIndex;
-    MeshBufferId := _Skin.Mesh.Subsets[SubsetId].BufferIndex;
-    vd := _Skin.Mesh.Buffers[MeshBufferId].VertexDescriptor;
-    SkinInfo.BoneWeights := _Skin.Buffers[SkinBufferId].WeightCount;
+    SkinSubset := _Skin.Subsets[SubsetId];
+    MeshSubset := _Skin.Mesh.Subsets[SubsetId];
+    vd := MeshSubset.VertexDescriptor;
+    SkinInfo.BoneWeights := SkinSubset.WeightCount;
     specialize UArrAppend<TShaderShared>(
       _Shaders, TShader.AutoShader(vd, @SkinInfo)
     );
     glBindVertexArray(_VertexArrays[SubsetId]);
-    glBindBuffer(GL_ARRAY_BUFFER, _Skin.Mesh.Buffers[MeshBufferId].VertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, MeshSubset.VertexBuffer);
     AttribOffset := nil;
     for i := 0 to High(vd) do
     begin
       glVertexAttribPointer(
         i, vd[i].DataCount, GL_FLOAT, GL_FALSE,
-        _Skin.Mesh.Buffers[MeshBufferId].VertexSize, AttribOffset
+        MeshSubset.VertexSize, AttribOffset
       );
       glEnableVertexAttribArray(i);
       AttribOffset += vd[i].Size;
     end;
-    glBindBuffer(GL_VERTEX_ARRAY, _Skin.Buffers[SkinBufferId].VertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, SkinSubset.VertexBuffer);
+    AttribOffset := nil;
     i := Length(vd);
-    glVertexAttribPointer(
-      i, SkinInfo.BoneWeights, GL_INT, GL_FALSE,
-      SkinInfo.BoneWeights * WeightSize, AttribOffset
+    glVertexAttribIPointer(
+      i, SkinInfo.BoneWeights, GL_UNSIGNED_INT,
+      SkinSubset.VertexSize, AttribOffset
     );
-    glEnableVertexAttribArray(i);
-    Inc(i);
+    glEnableVertexAttribArray(i); Inc(i);
     AttribOffset += SkinInfo.BoneWeights * SizeOf(UInt32);
     glVertexAttribPointer(
       i, SkinInfo.BoneWeights, GL_FLOAT, GL_FALSE,
-      SkinInfo.BoneWeights * WeightSize, AttribOffset
+      SkinSubset.VertexSize, AttribOffset
     );
     glEnableVertexAttribArray(i);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _Skin.Mesh.Buffers[MeshBufferId].IndexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, MeshSubset.IndexBuffer);
   end;
   glBindVertexArray(0);
   SetLength(_Pose, Length(_Skin.Joints));
@@ -916,13 +837,21 @@ begin
 end;
 
 procedure TForm1.Initialize;
+  const Buffer: array[0..2] of TUVec3 = ((-1, -1, 0), (0, 1, 0), (1, -1, 0));
 begin
   //Load('../Assets/siren/siren_anim.dae');
   Load('../Assets/skin.dae');
+  //Load('../Assets/box.dae');
+  Shader := TShader.Create(UFileToStr('shader_vs.txt'), UFileToStr('shader_ps.txt'));
+  glGenBuffers(1, @vb);
+  glBindBuffer(GL_ARRAY_BUFFER, vb);
+  glBufferData(GL_ARRAY_BUFFER, SizeOf(Buffer), @Buffer, GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 end;
 
 procedure TForm1.Finalize;
 begin
+  Shader := nil;
   TextureRemap.Clear;
   MaterialRemap.Clear;
   SkinRemap.Clear;
@@ -936,12 +865,11 @@ end;
 
 procedure TForm1.Tick;
   var W, V, P, WVP: TUMat;
-  var CurShader: TShader;
   procedure DrawNode(const Node: TNode);
     var Attach: TNode.TAttachment;
     var AttachMesh: TNode.TAttachmentMesh;
     var AttachSkin: TNode.TAttachmentSkin;
-    var CurBuffer, NewBuffer, CurTexture, NewTexture: TGLuint;
+    var NewBuffer, NewTexture: TGLuint;
     var NewShader: TShader;
     var Xf: TUMat;
     var i: Int32;
@@ -952,32 +880,17 @@ procedure TForm1.Tick;
       AttachMesh := TNode.TAttachmentMesh(Attach);
       Xf := AttachMesh.Node.Transform;
       WVP := Xf * W * V * P;
-      CurBuffer := 0;
-      CurTexture := 0;
       for i := 0 to High(AttachMesh.Mesh.Subsets) do
       begin
         NewShader := AttachMesh.Shaders[i].Ptr;
-        if NewShader <> CurShader then
-        begin
-          CurShader := NewShader;
-          CurShader.Use;
-          CurTexture := 0;
-        end;
+        NewShader.Use;
         NewBuffer := AttachMesh.VertexArrays[i];
-        if NewBuffer <> CurBuffer then
-        begin
-          CurBuffer := NewBuffer;
-          glBindVertexArray(CurBuffer);
-        end;
+        glBindVertexArray(NewBuffer);
         NewTexture := AttachMesh.Materials[i].Texture.Ptr.Handle;
-        if NewTexture <> CurTexture then
-        begin
-          CurTexture := NewTexture;
-          glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, CurTexture);
-          glUniform1i(CurShader.UniformTex0, 0);
-        end;
-        glUniformMatrix4fv(CurShader.UniformWVP, 1, GL_TRUE, @WVP);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, NewTexture);
+        glUniform1i(NewShader.UniformTex0, 0);
+        glUniformMatrix4fv(NewShader.UniformWVP, 1, GL_TRUE, @WVP);
         AttachMesh.Mesh.DrawSubset(i);
       end;
     end
@@ -986,33 +899,18 @@ procedure TForm1.Tick;
       AttachSkin := TNode.TAttachmentSkin(Attach);
       Xf := AttachSkin.Node.Transform;
       WVP := Xf * W * V * P;
-      CurBuffer := 0;
-      CurTexture := 0;
       for i := 0 to High(AttachSkin.Skin.Subsets) do
       begin
         NewShader := AttachSkin.Shaders[i].Ptr;
-        if NewShader <> CurShader then
-        begin
-          CurShader := NewShader;
-          CurShader.Use;
-          CurTexture := 0;
-        end;
+        NewShader.Use;
         NewBuffer := AttachSkin.VertexArrays[i];
-        if NewBuffer <> CurBuffer then
-        begin
-          CurBuffer := NewBuffer;
-          glBindVertexArray(CurBuffer);
-        end;
+        glBindVertexArray(NewBuffer);
         NewTexture := AttachSkin.Materials[i].Texture.Ptr.Handle;
-        if NewTexture <> CurTexture then
-        begin
-          CurTexture := NewTexture;
-          glActiveTexture(GL_TEXTURE0);
-          glBindTexture(GL_TEXTURE_2D, CurTexture);
-          glUniform1i(CurShader.UniformTex0, 0);
-        end;
-        glUniformMatrix4fv(CurShader.UniformWVP, 1, GL_TRUE, @WVP);
-        glUniformMatrix4fv(CurShader.UniformBone, Length(AttachSkin.Pose), GL_TRUE, @AttachSkin.Pose[0]);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, NewTexture);
+        glUniform1i(NewShader.UniformTex0, 0);
+        glUniformMatrix4fv(NewShader.UniformWVP, 1, GL_TRUE, @WVP);
+        glUniformMatrix4fv(NewShader.UniformBone, Length(AttachSkin.Pose), GL_TRUE, @AttachSkin.Pose[0]);
         AttachSkin.Skin.Mesh.DrawSubset(i);
       end;
     end;
@@ -1021,6 +919,9 @@ procedure TForm1.Tick;
       DrawNode(Node.Children[i]);
     end;
   end;
+  var Mesh: TMesh;
+  var i: Int32;
+  var AttribOffset: Pointer;
 begin
   W := TUMat.RotationZ(((GetTickCount64 mod 4000) / 4000) * UTwoPi);
   v := TUMat.View(TUVec3.Make(10, 10, 10), TUVec3.Make(0, 0, 5), TUVec3.Make(0, 0, 1));
@@ -1032,9 +933,26 @@ begin
   glClearColor(0.4, 1, 0.8, 1);
   glClearDepth(1);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-
-  CurShader := nil;
-  //Shader.Ptr.Use;
+   {
+  Mesh := Meshes[0].Ptr;
+  Shader := TShader.AutoShader(Mesh.Subsets[0].VertexDescriptor);
+  Shader.Ptr.Use;
+  glUniformMatrix4fv(Shader.Ptr.UniformWVP, 1, GL_TRUE, @WVP);
+  glBindBuffer(GL_ARRAY_BUFFER, Mesh.Subsets[0].VertexBuffer);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh.Subsets[0].IndexBuffer);
+  AttribOffset := nil;
+  for i := 0 to High(Mesh.Subsets[0].VertexDescriptor) do
+  begin
+    glVertexAttribPointer(
+      i, Mesh.Subsets[0].VertexDescriptor[i].DataCount,
+      GL_FLOAT, GL_FALSE,
+      Mesh.Subsets[0].VertexSize, AttribOffset
+    );
+    glEnableVertexAttribArray(i);
+    AttribOffset += Mesh.Subsets[0].VertexDescriptor[i].Size;
+  end;
+  glDrawElements(GL_TRIANGLES, Mesh.Subsets[0].IndexCount, Mesh.Subsets[0].IndexFormat, nil);
+  }
   if RootNode.IsValid then
   begin
     DrawNode(RootNode.Ptr);

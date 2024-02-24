@@ -244,6 +244,7 @@ var Display: PDisplay;
 var Screen: Int32;
 var WindowHandle: TWindow;
 var VisualInfo: PTXVisualInfo;
+var FBConfig: TGLXFBConfig;
 var Context: TGLXContext;
 const _NET_WM_STATE_REMOVE = 0;
 const _NET_WM_STATE_ADD = 1;
@@ -303,6 +304,9 @@ procedure CreateWindow(const W, H: Integer; const Caption: AnsiString = 'PureOGL
   var VisualAttribs: array of Int32;
   var ColorMap: TColormap;
   var WindowAttribsInit: TXSetWindowAttributes;
+  var Attribs: TGLAttribs;
+  var Config: PGLXFBConfig;
+  var ConfigCount: Int32;
 begin
   Display := XOpenDisplay(nil);
   if not Assigned(Display) then
@@ -311,21 +315,63 @@ begin
     Exit;
   end;
   Screen := DefaultScreen(Display);
-  VisualAttribs := [
-    GLX_RGBA, GLX_DEPTH_SIZE, 24,
-    GLX_DOUBLEBUFFER, None
-  ];
-  VisualInfo := glXChooseVisual(Display, 0, @VisualAttribs[0]);
+  Attribs[GLX_X_RENDERABLE] := GL_TRUE;
+  Attribs[GLX_DRAWABLE_TYPE] := GLX_WINDOW_BIT;
+  Attribs[GLX_RENDER_TYPE] := GLX_RGBA_BIT;
+  Attribs[GLX_X_VISUAL_TYPE] := GLX_TRUE_COLOR;
+  Attribs[GLX_RED_SIZE] := 8;
+  Attribs[GLX_GREEN_SIZE] := 8;
+  Attribs[GLX_BLUE_SIZE] := 8;
+  Attribs[GLX_ALPHA_SIZE] := 8;
+  Attribs[GLX_DEPTH_SIZE] := 24;
+  Attribs[GLX_STENCIL_SIZE] := 8;
+  Attribs[GLX_DOUBLEBUFFER] := GL_TRUE;
+  Attribs[GLX_SAMPLE_BUFFERS] := 1;
+  Attribs[GLX_SAMPLES] := 8;
+  Config := glXChooseFBConfig(Display, Screen, Attribs.Data, @ConfigCount);
+  if Assigned(Config) then
+  begin
+    //iterate over ConfigCount to pick the most appropriate config
+    FBConfig := Config^;
+    VisualInfo := glXGetVisualFromFBConfig(Display, FBConfig);
+    {
+    it is possible to acquire a compatible visual info from glXChooseVisual
+    every component size must match the visual from FB config.
+    it may be useful when creating context in dependent of window
+    VisualAttribs := [
+      GLX_RGBA,
+      GLX_RED_SIZE, 8,
+      GLX_GREEN_SIZE, 8,
+      GLX_BLUE_SIZE, 8,
+      GLX_ALPHA_SIZE, 8,
+      GLX_DEPTH_SIZE, 24,
+      GLX_STENCIL_SIZE, 8,
+      GLX_DOUBLEBUFFER,
+      None
+    ];
+    VisualInfo := glXChooseVisual(Display, Screen, @VisualAttribs[0]);
+    }
+    XFree(Config);
+  end
+  else
+  begin
+    WriteLn('No appropriate frame buffer configs detected!');
+    VisualAttribs := [
+      GLX_RGBA, GLX_DEPTH_SIZE, 24,
+      GLX_DOUBLEBUFFER, None
+    ];
+    VisualInfo := glXChooseVisual(Display, Screen, @VisualAttribs[0]);
+  end;
   ColorMap := XCreateColormap(Display, DefaultRootWindow(Display), VisualInfo^.visual, AllocNone);
   WindowAttribsInit := Default(TXSetWindowAttributes);
   WindowAttribsInit.colormap := ColorMap;
   WindowAttribsInit.event_mask := ExposureMask or KeyPressMask;
   WindowHandle := XCreateWindow(
     Display, RootWindow(Display, Screen), 0, 0, W, H, 1,
-    DefaultDepth(Display, Screen), InputOutput, VisualInfo^.visual,
+    VisualInfo^.depth, InputOutput, VisualInfo^.visual,
     CWColormap or CWEventMask, @WindowAttribsInit
   );
-  XSetStandardProperties(Display, WindowHandle, 'Window Title', 'LinuxWindow', None, nil, 0, nil);
+  XStoreName(Display, WindowHandle, 'Window Title');
   XSelectInput(Display, WindowHandle, ExposureMask or KeyPressMask);
   Windowed;
   XMapWindow(Display, WindowHandle);
@@ -335,13 +381,25 @@ end;
 
 procedure FreeWindow;
 begin
+  XFree(VisualInfo);
   XDestroyWindow(Display, WindowHandle);
   XCloseDisplay(Display);
 end;
 
 procedure CreateGL;
+  var ContextAttribs: TGLAttribs;
 begin
-  Context := glXCreateContext(Display, VisualInfo, nil, GL_TRUE);
+  if Assigned(FBConfig) then
+  begin
+    ContextAttribs[GLX_CONTEXT_MAJOR_VERSION_ARB] := 3;
+    ContextAttribs[GLX_CONTEXT_MINOR_VERSION_ARB] := 0;
+    //ContextAttribs[GLX_CONTEXT_FLAGS_ARB] := GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
+    Context := glXCreateContextAttribsARB(Display, FBConfig, nil, GL_TRUE, ContextAttribs.Data);
+  end
+  else
+  begin
+    Context := glXCreateContext(Display, VisualInfo, nil, GL_TRUE);
+  end;
   glXMakeCurrent(Display, WindowHandle, Context);
 end;
 

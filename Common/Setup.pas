@@ -23,7 +23,6 @@ private
   var DeviceContext: HDC;
 {$elseif defined(LINUX)}
   var Display: PDisplay;
-  var VisualInfo: PTXVisualInfo;
   var Context: TGLXContext;
   function NativeHandle: TWindow;
 {$endif}
@@ -80,8 +79,8 @@ procedure TCommonForm.WinInitializeOpenGL;
   var pfd: TPixelFormatDescriptor;
   var pf: Integer;
   var pfn: GLuint;
-  var FormatAttribs: TwglAttribs;
-  var ContextAttribs: TwglAttribs;
+  var FormatAttribs: TGLAttribs;
+  var ContextAttribs: TGLAttribs;
 begin
   DeviceContext := GetDC(Handle);
   FormatAttribs[WGL_DRAW_TO_WINDOW_ARB] := GL_TRUE;
@@ -150,15 +149,35 @@ begin
 end;
 
 procedure TCommonForm.LinuxInitializeOpenGL;
-  var VisualAttribs: array of Int32;
+  type TGLXFBConfigArr = array[UInt16] of TGLXFBConfig;
+  type PGLXFBConfigArr = ^TGLXFBConfigArr;
+  var VisualAttribs: TGLAttribs;
+  var ContextAttribs: TGLAttribs;
+  var Configs: PGLXFBConfigArr;
+  var ConfigCount: Int32;
 begin
   Display := XOpenDisplay(nil);
-  VisualAttribs := [
-    GLX_RGBA, GLX_DEPTH_SIZE, 24,
-    GLX_DOUBLEBUFFER, None
-  ];
-  VisualInfo := glXChooseVisual(Display, DefaultScreen(Display), @VisualAttribs[0]);
-  Context := glXCreateContext(Display, VisualInfo, glSharedContext, GL_TRUE);
+  VisualAttribs[GLX_X_RENDERABLE] := GL_TRUE;
+  VisualAttribs[GLX_DRAWABLE_TYPE] := GLX_WINDOW_BIT;
+  VisualAttribs[GLX_RENDER_TYPE] := GLX_RGBA_BIT;
+  VisualAttribs[GLX_X_VISUAL_TYPE] := GLX_TRUE_COLOR;
+  VisualAttribs[GLX_RED_SIZE] := 8;
+  VisualAttribs[GLX_GREEN_SIZE] := 8;
+  VisualAttribs[GLX_BLUE_SIZE] := 8;
+  //VisualAttribs[GLX_ALPHA_SIZE] := 8;
+  //VisualAttribs[GLX_DEPTH_SIZE] := 0;
+  //VisualAttribs[GLX_STENCIL_SIZE] := 0;
+  VisualAttribs[GLX_DOUBLEBUFFER] := GL_TRUE;
+  //VisualAttribs[GLX_SAMPLE_BUFFERS] := 1;
+  //VisualAttribs[GLX_SAMPLES] := 4;
+  Configs := PGLXFBConfigArr(glXChooseFBConfig(Display, DefaultScreen(Display), VisualAttribs.Data, @ConfigCount));
+  //Can query config attribs with to find the most suitable one
+  //glXGetFBConfigAttrib
+  ContextAttribs[GLX_CONTEXT_MAJOR_VERSION_ARB] := 3;
+  ContextAttribs[GLX_CONTEXT_MINOR_VERSION_ARB] := 0;
+  Context := glXCreateContextAttribsARB(Display, Configs^[0], glSharedContext, GL_TRUE, ContextAttribs.Data);
+  //Context := glXCreateContext(Display, VisualInfo, glSharedContext, GL_TRUE);
+  XFree(Configs);
   glXMakeCurrent(Display, NativeHandle, Context);
 end;
 

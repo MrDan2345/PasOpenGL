@@ -211,8 +211,8 @@ begin
   //glPolygonMode(GL_FRONT, GL_LINE);
   //glPolygonMode(GL_BACK, GL_LINE);
 
-  glBindVertexArray(VertexArray);
   glUseProgram(Shader);
+  glBindVertexArray(VertexArray);
   glUniformMatrix4fv(UniformWVP, 1, GL_TRUE, @WVP);
   glDrawElements(GL_TRIANGLES, IndexCount, GL_UNSIGNED_INT, nil);
   //glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
