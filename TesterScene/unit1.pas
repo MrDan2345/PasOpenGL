@@ -10,6 +10,7 @@ uses
   CommonUtils, MediaUtils, Setup;
 
 type TGLuintArray = array of TGLuint;
+type TNode = class;
 
 type TShader = class(TURefClass)
 public
@@ -121,6 +122,41 @@ public
 end;
 type TMaterialShared = specialize TUSharedRef<TMaterial>;
 
+type TAnimation = class (TURefClass)
+public
+  type TTrack = class
+  public
+    type TKey = record
+      var Time: TUFloat;
+      var Value: TUMat;
+      var Interpolation: TUSceneData.TAnimationInterface.TKeyInterpolation;
+    end;
+    type TKeyList = array of TKey;
+  private
+    var _Name: String;
+    var _Keys: TKeyList;
+    var _Target: TNode;
+    var _MaxTime: TUFloat;
+    function FindKey(const Time: TUFloat): Int32;
+  public
+    property Name: String read _Name;
+    property Keys: TKeyList read _Keys;
+    property Target: TNode read _Target;
+    property MaxTime: TUFloat read _MaxTime;
+    function Sample(const Time: TUFloat; const Loop: Boolean = True): TUMat;
+    constructor Create(const TrackData: TUSceneData.TAnimationInterface.TTrack);
+    destructor Destroy; override;
+  end;
+  type TTrackList = array of TTrack;
+private
+  var _Tracks: TTrackList;
+public
+  property Tracks: TTrackList read _Tracks;
+  constructor Create(const AnimationData: TUSceneData.TAnimationInterface);
+  destructor Destroy; override;
+end;
+type TAnimationShared = specialize TUSharedRef<TAnimation>;
+
 type TNode = class (TURefClass)
 public
   type TNodeList = array of TNode;
@@ -181,12 +217,17 @@ private
   procedure AttachAdd(const Attach: TAttachment);
   procedure AttachRemove(const Attach: TAttachment);
   procedure SetParent(const Value: TNode);
+  procedure ApplyTransform(const Value: TUMat);
+  procedure SetTransform(const Value: TUMat);
+  function GetLocalTransform: TUMat; inline;
+  procedure SetLocalTransform(const Value: TUMat);
 public
   property Name: String read _Name;
   property Parent: TNode read _Parent write SetParent;
   property Children: TNodeList read _Children;
   property Attachments: TAttachmentList read _Attachments;
-  property Transform: TUMat read _Transform write _Transform;
+  property Transform: TUMat read _Transform write SetTransform;
+  property LocalTransform: TUMat read GetLocalTransform write SetLocalTransform;
   constructor Create(
     const AParent: TNode;
     const NodeData: TUSceneData.TNodeInterface
@@ -201,6 +242,7 @@ private
   var Skins: array of TSkinShared;
   var Textures: array of TTextureShared;
   var Materials: array of TMaterialShared;
+  var Animations: array of TAnimationShared;
   var RootNode: TNodeShared;
   var TextureRemap: specialize TUMap<Pointer, TTextureShared>;
   var MeshRemap: specialize TUMap<Pointer, TMeshShared>;
@@ -208,7 +250,8 @@ private
   var MaterialRemap: specialize TUMap<Pointer, TMaterialShared>;
   var NodeRemap: specialize TUMap<Pointer, TNode>;
   var Shader: TShaderShared;
-  var vb: TGLint;
+  var AppStartTime: UInt64;
+  var LoadDir: String;
   procedure ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
   procedure Load(const FileName: String);
 public
@@ -511,7 +554,8 @@ constructor TTexture.Create(const ImageData: TUSceneData.TImageInterface);
   var TextureFormat, TextureType: TGLenum;
 begin
   //Image := ULoadImageData('../Assets/siren/' + ImageData.FileName);
-  Image := ULoadImageData('../Assets/' + ImageData.FileName);
+  //Image := ULoadImageData('../Assets/' + ImageData.FileName);
+  Image := ULoadImageData(Form1.LoadDir + '/' + ImageData.FileName);
   if not Image.IsValid then
   begin
     _Handle := 0;
@@ -557,6 +601,80 @@ begin
 end;
 
 destructor TMaterial.Destroy;
+begin
+  inherited Destroy;
+end;
+
+constructor TAnimation.Create(const AnimationData: TUSceneData.TAnimationInterface);
+  var i: Int32;
+begin
+  SetLength(_Tracks, Length(AnimationData.Tracks));
+  for i := 0 to High(_Tracks) do
+  begin
+    _Tracks[i] := TTrack.Create(AnimationData.Tracks[i]);
+  end;
+end;
+
+destructor TAnimation.Destroy;
+begin
+  inherited Destroy;
+end;
+
+function TAnimation.TTrack.FindKey(const Time: TUFloat): Int32;
+  var i: Int32;
+begin
+  for i := 1 to High(_Keys) do
+  if _Keys[i].Time > Time then
+  begin
+    Exit(i - 1);
+  end;
+  Result := High(_Keys);
+end;
+
+function TAnimation.TTrack.Sample(const Time: TUFloat; const Loop: Boolean): TUMat;
+  var k0, k1: UInt32;
+  var t: TUFloat;
+begin
+  if (Length(_Keys) < 1) then Exit(TUMat.Identity);
+  if not Loop then
+  begin
+    if Time <= _Keys[0].Time then
+    begin
+      Exit(_Keys[0].Value);
+    end;
+    if Time >= _Keys[High(_Keys)].Time then
+    begin
+      Exit(_Keys[High(_Keys)].Value);
+    end;
+  end;
+  t := Time mod _Keys[High(_Keys)].Time;
+  k0 := FindKey(t);
+  case _Keys[k0].Interpolation of
+    ki_step: Exit(_Keys[k0].Value);
+    ki_linear:
+    begin
+      k1 := (k0 + 1) mod Length(_Keys);
+      if k1 < k0 then USwap(k0, k1);
+      t := (t - _Keys[k0].Time) / (_Keys[k1].Time - _Keys[k0].Time);
+      Exit(ULerp(_Keys[k0].Value, _Keys[k1].Value, t));
+    end;
+  end;
+end;
+
+constructor TAnimation.TTrack.Create(const TrackData: TUSceneData.TAnimationInterface.TTrack);
+  var i: Int32;
+begin
+  _Target := Form1.NodeRemap.FindValueByKey(TrackData.Target);
+  SetLength(_Keys, Length(TrackData.Keys));
+  for i := 0 to High(_Keys) do
+  begin
+    _Keys[i].Interpolation := TrackData.Keys[i].Interpolation;
+    _Keys[i].Time := TrackData.Keys[i].Time;
+    _Keys[i].Value := TrackData.Keys[i].Value;
+  end;
+end;
+
+destructor TAnimation.TTrack.Destroy;
 begin
   inherited Destroy;
 end;
@@ -710,7 +828,7 @@ procedure TNode.TAttachmentSkin.UpdatePose;
 begin
   for i := 0 to High(_Pose) do
   begin
-    _Pose[i] := _Skin.Bind * _Skin.Joints[i].Bind * _JointBindings[i].Transform;
+    _Pose[i] := (_Skin.Bind * _Skin.Joints[i].Bind * _JointBindings[i].Transform);
   end;
 end;
 
@@ -740,6 +858,47 @@ begin
   if Assigned(_Parent) then _Parent.ChildRemove(Self);
   _Parent := Value;
   if Assigned(_Parent) then _Parent.ChildAdd(Self);
+end;
+
+procedure TNode.ApplyTransform(const Value: TUMat);
+  var i: Int32;
+begin
+  _Transform := _Transform * Value;
+  for i := 0 to High(_Children) do
+  begin
+    _Children[i].ApplyTransform(Value);
+  end;
+end;
+
+procedure TNode.SetTransform(const Value: TUMat);
+  var Diff: TUMat;
+begin
+  Diff := _Transform.Inverse * Value;
+  ApplyTransform(Diff);
+end;
+
+function TNode.GetLocalTransform: TUMat;
+begin
+  if Assigned(_Parent) then
+  begin
+    Result := _Parent.Transform.Inverse * _Transform;
+  end
+  else
+  begin
+    Result := _Transform;
+  end;
+end;
+
+procedure TNode.SetLocalTransform(const Value: TUMat);
+begin
+  if Assigned(_Parent) then
+  begin
+    SetTransform(Value * _Parent.Transform)
+  end
+  else
+  begin
+    SetTransform(Value);
+  end;
 end;
 
 constructor TNode.Create(
@@ -803,6 +962,7 @@ procedure TForm1.Load(const FileName: String);
   var i: Integer;
   var Scene: TUSceneDataDAE;
 begin
+  LoadDir := ExtractFileDir(FileName);
   Scene := TUSceneDataDAE.Create([]);
   try
     Scene.Load(FileName);
@@ -831,22 +991,23 @@ begin
       MaterialRemap.Add(Scene.MaterialList[i], Materials[i]);
     end;
     RootNode := TNode.Create(nil, Scene.RootNode);
+    SetLength(Animations, Length(Scene.AnimationList));
+    for i := 0 to High(Animations) do
+    begin
+      Animations[i] := TAnimation.Create(Scene.AnimationList[i]);
+    end;
   finally
     FreeAndNil(Scene);
   end;
 end;
 
 procedure TForm1.Initialize;
-  const Buffer: array[0..2] of TUVec3 = ((-1, -1, 0), (0, 1, 0), (1, -1, 0));
 begin
-  //Load('../Assets/siren/siren_anim.dae');
-  Load('../Assets/skin.dae');
+  AppStartTime := GetTickCount64;
+  Load('../Assets/siren/siren_anim.dae');
+  //Load('../Assets/skin.dae');
   //Load('../Assets/box.dae');
   Shader := TShader.Create(UFileToStr('shader_vs.txt'), UFileToStr('shader_ps.txt'));
-  glGenBuffers(1, @vb);
-  glBindBuffer(GL_ARRAY_BUFFER, vb);
-  glBufferData(GL_ARRAY_BUFFER, SizeOf(Buffer), @Buffer, GL_STATIC_DRAW);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
 end;
 
 procedure TForm1.Finalize;
@@ -897,6 +1058,7 @@ procedure TForm1.Tick;
     else if Attach is TNode.TAttachmentSkin then
     begin
       AttachSkin := TNode.TAttachmentSkin(Attach);
+      AttachSkin.UpdatePose;
       Xf := AttachSkin.Node.Transform;
       WVP := Xf * W * V * P;
       for i := 0 to High(AttachSkin.Skin.Subsets) do
@@ -919,40 +1081,34 @@ procedure TForm1.Tick;
       DrawNode(Node.Children[i]);
     end;
   end;
-  var Mesh: TMesh;
+  procedure ApplyAnimation(const Animation: TAnimation; const Time: TUFloat);
+    var i: Int32;
+  begin
+    for i := 0 to High(Animation.Tracks) do
+    begin
+      Animation.Tracks[i].Target.LocalTransform := Animation.Tracks[i].Sample(Time).Normalize;
+    end;
+  end;
+  var t: TUFloat;
   var i: Int32;
-  var AttribOffset: Pointer;
 begin
   W := TUMat.RotationZ(((GetTickCount64 mod 4000) / 4000) * UTwoPi);
   v := TUMat.View(TUVec3.Make(10, 10, 10), TUVec3.Make(0, 0, 5), TUVec3.Make(0, 0, 1));
   P := TUMat.Proj(UPi * 0.3, ClientWidth / ClientHeight, 0.1, 100);
   WVP := W * V * P;
 
+  t := (GetTickCount64 - AppStartTime) * 0.001;
+  for i := 0 to High(Animations) do
+  begin
+    ApplyAnimation(Animations[i].Ptr, t * 3);
+  end;
+
   glViewport(0, 0, ClientWidth, ClientHeight);
   glEnable(GL_DEPTH_TEST);
   glClearColor(0.4, 1, 0.8, 1);
   glClearDepth(1);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-   {
-  Mesh := Meshes[0].Ptr;
-  Shader := TShader.AutoShader(Mesh.Subsets[0].VertexDescriptor);
-  Shader.Ptr.Use;
-  glUniformMatrix4fv(Shader.Ptr.UniformWVP, 1, GL_TRUE, @WVP);
-  glBindBuffer(GL_ARRAY_BUFFER, Mesh.Subsets[0].VertexBuffer);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh.Subsets[0].IndexBuffer);
-  AttribOffset := nil;
-  for i := 0 to High(Mesh.Subsets[0].VertexDescriptor) do
-  begin
-    glVertexAttribPointer(
-      i, Mesh.Subsets[0].VertexDescriptor[i].DataCount,
-      GL_FLOAT, GL_FALSE,
-      Mesh.Subsets[0].VertexSize, AttribOffset
-    );
-    glEnableVertexAttribArray(i);
-    AttribOffset += Mesh.Subsets[0].VertexDescriptor[i].Size;
-  end;
-  glDrawElements(GL_TRIANGLES, Mesh.Subsets[0].IndexCount, Mesh.Subsets[0].IndexFormat, nil);
-  }
+
   if RootNode.IsValid then
   begin
     DrawNode(RootNode.Ptr);
