@@ -620,14 +620,17 @@ begin
 end;
 
 function TAnimation.TTrack.FindKey(const Time: TUFloat): Int32;
-  var i: Int32;
+  var i, l, h, m: Int32;
 begin
-  for i := 1 to High(_Keys) do
-  if _Keys[i].Time > Time then
+  l := 0; h := High(_Keys);
+  i := h - l;
+  while i > 1 do
   begin
-    Exit(i - 1);
+    m := l + (i shr 1);
+    if _Keys[m].Time > Time then h := m else l := m;
+    i := h - l;
   end;
-  Result := High(_Keys);
+  Result := l;
 end;
 
 function TAnimation.TTrack.Sample(const Time: TUFloat; const Loop: Boolean): TUMat;
