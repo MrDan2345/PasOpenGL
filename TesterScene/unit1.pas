@@ -249,7 +249,6 @@ private
   var SkinRemap: specialize TUMap<Pointer, TSkinShared>;
   var MaterialRemap: specialize TUMap<Pointer, TMaterialShared>;
   var NodeRemap: specialize TUMap<Pointer, TNode>;
-  var Shader: TShaderShared;
   var AppStartTime: UInt64;
   var LoadDir: String;
   procedure ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
@@ -750,7 +749,6 @@ constructor TNode.TAttachmentSkin.Create(const AttachData: TUSceneData.TAttachme
   var SkinInfo: TShader.TSkinInfo;
   var AttribOffset: Pointer;
   var vd: TUVertexDescriptor;
-  const WeightSize = SizeOf(UInt32) + SizeOf(TUFloat);
 begin
   inherited Create;
   _Skin := Form1.SkinRemap.FindValueByKey(AttachData.Skin).Ptr;
@@ -963,7 +961,7 @@ procedure TForm1.Load(const FileName: String);
   var Scene: TUSceneDataDAE;
 begin
   LoadDir := ExtractFileDir(FileName);
-  Scene := TUSceneDataDAE.Create([]);
+  Scene := TUSceneDataDAE.Create([sdo_optimize]);
   try
     Scene.Load(FileName);
     SetLength(Textures, Length(Scene.ImageList));
@@ -1007,12 +1005,10 @@ begin
   Load('../Assets/siren/siren_anim.dae');
   //Load('../Assets/skin.dae');
   //Load('../Assets/box.dae');
-  Shader := TShader.Create(UFileToStr('shader_vs.txt'), UFileToStr('shader_ps.txt'));
 end;
 
 procedure TForm1.Finalize;
 begin
-  Shader := nil;
   TextureRemap.Clear;
   MaterialRemap.Clear;
   SkinRemap.Clear;
@@ -1022,6 +1018,8 @@ begin
   Skins := nil;
   Meshes := nil;
   Textures := nil;
+  Materials := nil;
+  Animations := nil;
 end;
 
 procedure TForm1.Tick;
@@ -1086,7 +1084,7 @@ procedure TForm1.Tick;
   begin
     for i := 0 to High(Animation.Tracks) do
     begin
-      Animation.Tracks[i].Target.LocalTransform := Animation.Tracks[i].Sample(Time).Normalize;
+      Animation.Tracks[i].Target.LocalTransform := Animation.Tracks[i].Sample(Time).Norm;
     end;
   end;
   var t: TUFloat;
