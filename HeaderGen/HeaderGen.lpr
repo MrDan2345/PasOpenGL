@@ -1022,7 +1022,7 @@ begin
       s := s.TrimRight(#$D#$A);
     end;
     Templ := StringReplace(Templ, '{#impl}', s, []);
-    UStrToFile(ExpandFileName(RootDir + '/../PasOpenGL.pas'), Templ);
+    UStrToFile(ExpandFileName(RootDir + '/../../PasOpenGL.pas'), Templ);
   finally
     Gen.Free;
   end;

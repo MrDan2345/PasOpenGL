@@ -1,15 +1,10 @@
-#linux executables (no ext)
-*
-!/**/
-!*.*
-
 *.exe
 *.dll
 *.lps
 
 backup/
 lib/
+bin/
 *.~*
 
-HeaderGen/xml/
-PasOpenGL.pas
+HeaderGen/xml/*
