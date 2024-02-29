@@ -1022,16 +1022,16 @@ begin
       s := s.TrimRight(#$D#$A);
     end;
     Templ := StringReplace(Templ, '{#impl}', s, []);
-    UStrToFile(ExpandFileName(RootDir + '/../../PasOpenGL.pas'), Templ);
+    UStrToFile(ExpandFileName(RootDir + '/../PasOpenGL.pas'), Templ);
   finally
     Gen.Free;
   end;
 end;
 //*)
 begin
-  RootDir := ExtractFileDir(ParamStr(0));
+  RootDir := ExpandFileName(ExtractFileDir(ParamStr(0)) + '/../');
   Run;
   WriteLn('done.');
-  ReadLn;
+  //ReadLn;
 end.
 
