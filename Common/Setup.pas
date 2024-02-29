@@ -113,8 +113,8 @@ begin
     pf := ChoosePixelFormat(DeviceContext, @pfd);
   end;
   SetPixelFormat(DeviceContext, pf, @pfd);
-  //ContextAttribs[WGL_CONTEXT_MAJOR_VERSION_ARB] := 3;
-  //ContextAttribs[WGL_CONTEXT_MINOR_VERSION_ARB] := 3;
+  ContextAttribs[WGL_CONTEXT_MAJOR_VERSION_ARB] := 4;
+  ContextAttribs[WGL_CONTEXT_MINOR_VERSION_ARB] := 5;
   //ContextAttribs[WGL_CONTEXT_FLAGS_ARB] := GL_CONTEXT_FLAG_DEBUG_BIT;
   //ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
   //ContextAttribs[WGL_CONTEXT_PROFILE_MASK_ARB] := WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
@@ -171,10 +171,19 @@ begin
   //VisualAttribs[GLX_SAMPLE_BUFFERS] := 1;
   //VisualAttribs[GLX_SAMPLES] := 4;
   Configs := PGLXFBConfigArr(glXChooseFBConfig(Display, DefaultScreen(Display), VisualAttribs.Data, @ConfigCount));
-  //Can query config attribs with to find the most suitable one
+  if not Assigned(Configs) then
+  begin
+    WriteLn(glGetError);
+    Exit;
+  end;
+  //Can query config attribs to find the most suitable one
   //glXGetFBConfigAttrib
-  ContextAttribs[GLX_CONTEXT_MAJOR_VERSION_ARB] := 3;
-  ContextAttribs[GLX_CONTEXT_MINOR_VERSION_ARB] := 0;
+  ContextAttribs[GLX_CONTEXT_MAJOR_VERSION_ARB] := 4;
+  ContextAttribs[GLX_CONTEXT_MINOR_VERSION_ARB] := 5;
+  //ContextAttribs[GLX_CONTEXT_FLAGS_ARB] := GL_CONTEXT_FLAG_DEBUG_BIT;
+  //ContextAttribs[GLX_CONTEXT_PROFILE_MASK_ARB] := GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
+  //ContextAttribs[GLX_CONTEXT_PROFILE_MASK_ARB] := GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
+  ContextAttribs[GLX_CONTEXT_PROFILE_MASK_ARB] := GLX_CONTEXT_CORE_PROFILE_BIT_ARB;
   Context := glXCreateContextAttribsARB(Display, Configs^[0], glSharedContext, GL_TRUE, ContextAttribs.Data);
   //Context := glXCreateContext(Display, VisualInfo, glSharedContext, GL_TRUE);
   XFree(Configs);

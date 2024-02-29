@@ -39,10 +39,10 @@ implementation
 procedure TForm1.ImageFormatToGL(const ImageFormat: TUImageDataFormat; out Format, DataType: TGLenum);
 begin
   case ImageFormat of
-    uif_g8: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_BYTE; end;
-    uif_g16: begin Format := GL_LUMINANCE; DataType := GL_UNSIGNED_SHORT; end;
-    uif_g8a8: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_BYTE; end;
-    uif_g16a16: begin Format := GL_LUMINANCE_ALPHA; DataType := GL_UNSIGNED_SHORT; end;
+    uif_g8: begin Format := GL_RED; DataType := GL_UNSIGNED_BYTE; end;
+    uif_g16: begin Format := GL_RED; DataType := GL_UNSIGNED_SHORT; end;
+    uif_g8a8: begin Format := GL_RG; DataType := GL_UNSIGNED_BYTE; end;
+    uif_g16a16: begin Format := GL_RG; DataType := GL_UNSIGNED_SHORT; end;
     uif_r8g8b8: begin Format := GL_RGB; DataType := GL_UNSIGNED_BYTE; end;
     uif_r16g16b16: begin Format := GL_RGB; DataType := GL_UNSIGNED_SHORT; end;
     uif_r8g8b8a8: begin Format := GL_RGBA; DataType := GL_UNSIGNED_BYTE; end;
