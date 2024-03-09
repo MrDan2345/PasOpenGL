@@ -46,7 +46,10 @@ type
       procedure Reset;
       procedure AddParam(const Param: TTypeDecl);
       procedure AddMember(const Member: TTypeDecl);
-      function ToString(const Separator: String = ' = '; const NameTypeCheck: Boolean = False): String;
+      function ToString(
+        const Separator: String = ' = ';
+        const NameTypeCheck: Boolean = False
+      ): String;
     end;
     type TEnumDecl = object
       Platform: String;
@@ -66,6 +69,7 @@ type
       function HasAlias: Boolean;
       procedure AddParam(const Param: TTypeDecl);
       function ToString(const Separator: String = ' = '): String;
+      function ToDebugImpl: String;
     end;
   private
     class var SynType: TUParserSyntax;
@@ -238,6 +242,39 @@ begin
   begin
     Result += ': ' + FuncDesc.Desc;
   end;
+end;
+
+function THeaderGen.TFuncDecl.ToDebugImpl: String;
+  var i: Int32;
+begin
+  if FuncDesc.IsVoid then Result := 'procedure ' else Result := 'function ';
+  Result += FuncDesc.Name + '_Debug(';
+  for i := 0 to High(Params) do
+  begin
+    if i > 0 then Result += '; ';
+    Result += Params[i].ToString(': ', True);
+  end;
+  Result += ')';
+  if not FuncDesc.IsVoid then
+  begin
+    Result += ': ' + FuncDesc.Desc;
+  end;
+  Result += ' libdecl;'#$D#$A;
+  Result += 'begin'#$D#$A;
+  Result += '  glDebugFrame := get_frame;'#$D#$A;
+  Result += '  ';
+  if not FuncDesc.IsVoid then
+  begin
+    Result += 'Result := ';
+  end;
+  Result += FuncDesc.Name + '_Direct(';
+  for i := 0 to High(Params) do
+  begin
+    if i > 0 then Result += ', ';
+    Result += Gen.ValidateName(Params[i].Name);
+  end;
+  Result += ');'#$D#$A;
+  Result += 'end;'#$D#$A;
 end;
 
 procedure THeaderGen.AddTypeRename(const TypeName: String);
@@ -986,6 +1023,37 @@ begin
       end;
     end;
     Templ := StringReplace(Templ, '{#intf}', s, []);
+    // direct function vars
+    s := '';
+    if Length(Gen.FuncDefs) > 0 then
+    begin
+      s += 'var'#$D#$A;
+      for df in Gen.FuncDefs do
+      if df.Platform = '' then
+      begin
+        s += '  ' + df.FuncDesc.Name + '_Direct: T' + df.FuncDesc.Name + ';'#$D#$A;
+        if df.HasAlias then
+        begin
+          s += '  ' + df.AliasName + '_Direct: T' + df.FuncDesc.Name + ';'#$D#$A;
+        end;
+      end;
+      for Platform in Platforms do
+      begin
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for df in Gen.FuncDefs do
+        if df.Platform = Platform then
+        begin
+          s += '  ' + df.FuncDesc.Name + '_Direct: T' + df.FuncDesc.Name + ';'#$D#$A;
+          if df.HasAlias then
+          begin
+            s += '  ' + df.AliasName + '_Direct: T' + df.FuncDesc.Name + ';'#$D#$A;
+          end;
+        end;
+        s += '{$endif}'#$D#$A;
+      end;
+    end;
+    Templ := StringReplace(Templ, '{#impl_direct}', s, []);
+    // function loading
     s := '';
     if Length(Gen.FuncDefs) > 0 then
     begin
@@ -997,15 +1065,15 @@ begin
         begin
           if IsGDI(df.FuncDesc.Name) then
           begin
-            s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(@GDI' + df.FuncDesc.Name + ');'#$D#$A;
+            s += '  ' + df.FuncDesc.Name + '_Direct := T' + df.FuncDesc.Name + '(@GDI' + df.FuncDesc.Name + ');'#$D#$A;
           end
           else
           begin
-            s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
+            s += '  ' + df.FuncDesc.Name + '_Direct := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
           end;
           if df.HasAlias then
           begin
-            s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + #$D#$A;
+            s += '  ' + df.AliasName + '_Direct := @' + df.FuncDesc.Name + '_Direct'#$D#$A;
           end;
         end;
         s += '{$endif}'#$D#$A;
@@ -1013,15 +1081,96 @@ begin
       for df in Gen.FuncDefs do
       if df.Platform = '' then
       begin
-        s += '  ' + df.FuncDesc.Name + ' := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
+        s += '  ' + df.FuncDesc.Name + '_Direct := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
         if df.HasAlias then
         begin
-          s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + #$D#$A;
+          s += '  ' + df.AliasName + '_Direct := @' + df.FuncDesc.Name + #$D#$A;
         end;
       end;
       s := s.TrimRight(#$D#$A);
     end;
-    Templ := StringReplace(Templ, '{#impl}', s, []);
+    Templ := StringReplace(Templ, '{#impl_load}', s, []);
+    // debug mode
+    s := '';
+    if Length(Gen.FuncDefs) > 0 then
+    begin
+      for Platform in Platforms do
+      begin
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for df in Gen.FuncDefs do
+        if df.Platform = Platform then
+        begin
+          s += df.ToDebugImpl;
+        end;
+        s += '{$endif}'#$D#$A;
+      end;
+      for df in Gen.FuncDefs do
+      if df.Platform = '' then
+      begin
+        s += df.ToDebugImpl;
+      end;
+      s := s.TrimRight(#$D#$A);
+    end;
+    Templ := StringReplace(Templ, '{#impl_debug}', s, []);
+    s := '';
+    if Length(Gen.FuncDefs) > 0 then
+    begin
+      for Platform in Platforms do
+      begin
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for df in Gen.FuncDefs do
+        if df.Platform = Platform then
+        begin
+          s += '  ' + df.FuncDesc.Name + ' := @' + df.FuncDesc.Name + '_Debug;'#$D#$A;
+          if df.HasAlias then
+          begin
+            s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + '_Debug'#$D#$A;
+          end;
+        end;
+        s += '{$endif}'#$D#$A;
+      end;
+      for df in Gen.FuncDefs do
+      if df.Platform = '' then
+      begin
+        s += '  ' + df.FuncDesc.Name + ' := @' + df.FuncDesc.Name + '_Debug;'#$D#$A;
+        if df.HasAlias then
+        begin
+          s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + '_Debug'#$D#$A;
+        end;
+      end;
+      s := s.TrimRight(#$D#$A);
+    end;
+    Templ := StringReplace(Templ, '{#impl_debug_assign}', s, []);
+    // direct mode
+    s := '';
+    if Length(Gen.FuncDefs) > 0 then
+    begin
+      for Platform in Platforms do
+      begin
+        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        for df in Gen.FuncDefs do
+        if df.Platform = Platform then
+        begin
+          s += '  ' + df.FuncDesc.Name + ' := ' + df.FuncDesc.Name + '_Direct;'#$D#$A;
+          if df.HasAlias then
+          begin
+            s += '  ' + df.AliasName + ' := ' + df.FuncDesc.Name + '_Direct'#$D#$A;
+          end;
+        end;
+        s += '{$endif}'#$D#$A;
+      end;
+      for df in Gen.FuncDefs do
+      if df.Platform = '' then
+      begin
+        s += '  ' + df.FuncDesc.Name + ' := ' + df.FuncDesc.Name + '_Direct;'#$D#$A;
+        if df.HasAlias then
+        begin
+          s += '  ' + df.AliasName + ' := ' + df.FuncDesc.Name + '_Direct'#$D#$A;
+        end;
+      end;
+      s := s.TrimRight(#$D#$A);
+    end;
+    Templ := StringReplace(Templ, '{#impl_direct_assign}', s, []);
     UStrToFile(ExpandFileName(RootDir + '/../PasOpenGL.pas'), Templ);
   finally
     Gen.Free;

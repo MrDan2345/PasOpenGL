@@ -44,7 +44,10 @@ interface
     property Attrib[const Index: TGLint]: TGLint read GetAttrib write SetAttrib; default;
     class operator Initialize(var v: TGLAttribs);
     class operator Finalize(var v: TGLAttribs);
-  end; 
+  end;
+
+function glIsDebugMode: Boolean;
+procedure glSetDebugMode(const Value: Boolean);
 
 {$if defined(WINDOWS)}
 var glSharedDC: HDC;
@@ -53,6 +56,8 @@ var glSharedContext: HGLRC;
 var glSharedWindow: TWindow;
 var glSharedContext: TGLXContext;
 {$endif}
+
+threadvar glDebugFrame: Pointer;
 
 implementation
 
@@ -146,6 +151,7 @@ begin
   Result := PlatformLibAddress(Handle, PAnsiChar(ProcName));
 end;
 
+var DebugMode: Boolean = False;
 var Lib: TLibHandle;
 
 function ProcAddress(const ProcName: String): Pointer;
@@ -158,9 +164,35 @@ begin
 {$endif}
 end; 
 
+{#impl_direct}
+
 procedure LoadCommands;
 begin
-{#impl}
+{#impl_load}
+end;
+
+{#impl_debug}
+
+procedure AssignDebug;
+begin
+{#impl_debug_assign}
+end;
+
+procedure AssignDirect;
+begin
+{#impl_direct_assign}
+end;
+
+function glIsDebugMode: Boolean;
+begin
+  Result := DebugMode;
+end;
+
+procedure glSetDebugMode(const Value: Boolean);
+begin
+  if Value = DebugMode then Exit;
+  DebugMode := Value;
+  if DebugMode then AssignDebug else AssignDirect;
 end;
 
 {$if defined(WINDOWS)}
@@ -196,6 +228,7 @@ begin
   wglMakeCurrent(glSharedDC, glSharedContext);
   wglGetProcAddress := TwglGetProcAddress(LibAddress(Lib, 'wglGetProcAddress'));
   LoadCommands;
+  AssignDirect;
 end;
 
 procedure WinFin;
@@ -215,6 +248,7 @@ procedure LinuxInit;
   var VisualInfo: PTXVisualInfo;
 begin
   LoadCommands;
+  AssignDirect;
   TmpDisplay := XOpenDisplay(nil);
   Screen := DefaultScreen(TmpDisplay);
   VisualAttribs := [
