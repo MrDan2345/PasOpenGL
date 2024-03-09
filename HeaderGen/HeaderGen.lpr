@@ -879,6 +879,16 @@ procedure Run;
     'SetPixelFormat',
     'SwapBuffers'
   );
+  function PlatformBegin(const Platform: String): String;
+  begin
+    if Length(Platform) = 0 then Exit('');
+    Result := '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+  end;
+  function PlatformEnd(const Platform: String): String;
+  begin
+    if Length(Platform) = 0 then Exit('');
+    Result := '{$endif}'#$D#$A;
+  end;
   function IsGDI(const FuncName: String): Boolean;
     var s: String;
   begin
@@ -889,8 +899,8 @@ procedure Run;
     end;
     Result := False;
   end;
-  const Platforms: array[0..1] of String = (
-    'windows', 'linux'
+  const Platforms: array of String = (
+    'windows', 'linux', ''
   );
 begin
   DownloadXML;
@@ -922,18 +932,9 @@ begin
     if Length(Gen.TypeDefs) > 0 then
     begin
       s := 'type'#$D#$A;
-      for dt in Gen.TypeDefs do
-      if dt.Platform = '' then
-      begin
-        s += '  ' + dt.ToString + ';'#$D#$A;
-        if dt.Name.StartsWith('GL', True) then
-        begin
-          s += '  T' + Gen.VerifyRename(dt.Name) + ' = ' + Gen.VerifyRename(dt.Name) + ';'#$D#$A;
-        end;
-      end;
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PlatformBegin(Platform);
         for dt in Gen.TypeDefs do
         if dt.Platform = Platform then
         begin
@@ -943,27 +944,15 @@ begin
             s += '  T' + Gen.VerifyRename(dt.Name) + ' = ' + Gen.VerifyRename(dt.Name) + ';'#$D#$A;
           end;
         end;
-        s += '{$endif}'#$D#$A;
+        s += PlatformEnd(Platform);
       end;
     end;
     if Length(Gen.EnumDefs) > 0 then
     begin
       s += 'const'#$D#$A;
-      for de in Gen.EnumDefs do
-      if de.Platform = '' then
-      begin
-        if de.HasAlias then
-        begin
-          s += '  ' + de.Name + ' = ' + de.AliasName + ';'#$D#$A;
-        end
-        else
-        begin
-          s += '  ' + de.ToString + ';'#$D#$A;
-        end;
-      end;
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PlatformBegin(Platform);
         for de in Gen.EnumDefs do
         if de.Platform = Platform then
         begin
@@ -976,40 +965,26 @@ begin
             s += '  ' + de.ToString + ';'#$D#$A;
           end;
         end;
-        s += '{$endif}'#$D#$A;
+        s += PlatformEnd(Platform);
       end;
     end;
     if Length(Gen.FuncDefs) > 0 then
     begin
       s += 'type'#$D#$A;
-      for df in Gen.FuncDefs do
-      if df.Platform = '' then
-      begin
-        s += '  T' + df.ToString(' = ') + '; libdecl;'#$D#$A;
-      end;
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PlatformBegin(Platform);
         for df in Gen.FuncDefs do
         if df.Platform = Platform then
         begin
           s += '  T' + df.ToString(' = ') + '; libdecl;'#$D#$A;
         end;
-        s += '{$endif}'#$D#$A;
+        s += PlatformEnd(Platform);
       end;
       s += 'var'#$D#$A;
-      for df in Gen.FuncDefs do
-      if df.Platform = '' then
-      begin
-        s += '  ' + df.FuncDesc.Name + ': T' + df.FuncDesc.Name + ';'#$D#$A;
-        if df.HasAlias then
-        begin
-          s += '  ' + df.AliasName + ': T' + df.FuncDesc.Name + ';'#$D#$A;
-        end;
-      end;
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PlatformBegin(Platform);
         for df in Gen.FuncDefs do
         if df.Platform = Platform then
         begin
@@ -1019,7 +994,7 @@ begin
             s += '  ' + df.AliasName + ': T' + df.FuncDesc.Name + ';'#$D#$A;
           end;
         end;
-        s += '{$endif}'#$D#$A;
+        s += PlatformEnd(Platform);
       end;
     end;
     Templ := StringReplace(Templ, '{#intf}', s, []);
@@ -1028,18 +1003,9 @@ begin
     if Length(Gen.FuncDefs) > 0 then
     begin
       s += 'var'#$D#$A;
-      for df in Gen.FuncDefs do
-      if df.Platform = '' then
-      begin
-        s += '  ' + df.FuncDesc.Name + '_Direct: T' + df.FuncDesc.Name + ';'#$D#$A;
-        if df.HasAlias then
-        begin
-          s += '  ' + df.AliasName + '_Direct: T' + df.FuncDesc.Name + ';'#$D#$A;
-        end;
-      end;
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PlatformBegin(Platform);
         for df in Gen.FuncDefs do
         if df.Platform = Platform then
         begin
@@ -1049,7 +1015,7 @@ begin
             s += '  ' + df.AliasName + '_Direct: T' + df.FuncDesc.Name + ';'#$D#$A;
           end;
         end;
-        s += '{$endif}'#$D#$A;
+        s += PlatformEnd(Platform);
       end;
     end;
     Templ := StringReplace(Templ, '{#impl_direct}', s, []);
@@ -1059,7 +1025,7 @@ begin
     begin
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PlatformBegin(Platform);
         for df in Gen.FuncDefs do
         if df.Platform = Platform then
         begin
@@ -1076,16 +1042,7 @@ begin
             s += '  ' + df.AliasName + '_Direct := @' + df.FuncDesc.Name + '_Direct'#$D#$A;
           end;
         end;
-        s += '{$endif}'#$D#$A;
-      end;
-      for df in Gen.FuncDefs do
-      if df.Platform = '' then
-      begin
-        s += '  ' + df.FuncDesc.Name + '_Direct := T' + df.FuncDesc.Name + '(ProcAddress(''' + df.FuncDesc.Name + '''));'#$D#$A;
-        if df.HasAlias then
-        begin
-          s += '  ' + df.AliasName + '_Direct := @' + df.FuncDesc.Name + #$D#$A;
-        end;
+        s += PlatformEnd(Platform);
       end;
       s := s.TrimRight(#$D#$A);
     end;
@@ -1096,18 +1053,13 @@ begin
     begin
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PLatformBegin(Platform);
         for df in Gen.FuncDefs do
         if df.Platform = Platform then
         begin
           s += df.ToDebugImpl;
         end;
-        s += '{$endif}'#$D#$A;
-      end;
-      for df in Gen.FuncDefs do
-      if df.Platform = '' then
-      begin
-        s += df.ToDebugImpl;
+        s += PlatformEnd(Platform);
       end;
       s := s.TrimRight(#$D#$A);
     end;
@@ -1117,7 +1069,7 @@ begin
     begin
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PlatformBegin(Platform);
         for df in Gen.FuncDefs do
         if df.Platform = Platform then
         begin
@@ -1127,16 +1079,7 @@ begin
             s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + '_Debug'#$D#$A;
           end;
         end;
-        s += '{$endif}'#$D#$A;
-      end;
-      for df in Gen.FuncDefs do
-      if df.Platform = '' then
-      begin
-        s += '  ' + df.FuncDesc.Name + ' := @' + df.FuncDesc.Name + '_Debug;'#$D#$A;
-        if df.HasAlias then
-        begin
-          s += '  ' + df.AliasName + ' := @' + df.FuncDesc.Name + '_Debug'#$D#$A;
-        end;
+        s += PlatformEnd(Platform);
       end;
       s := s.TrimRight(#$D#$A);
     end;
@@ -1147,7 +1090,7 @@ begin
     begin
       for Platform in Platforms do
       begin
-        s += '{$if defined(' + UpperCase(Platform) + ')}'#$D#$A;
+        s += PlatformBegin(Platform);
         for df in Gen.FuncDefs do
         if df.Platform = Platform then
         begin
@@ -1157,16 +1100,7 @@ begin
             s += '  ' + df.AliasName + ' := ' + df.FuncDesc.Name + '_Direct'#$D#$A;
           end;
         end;
-        s += '{$endif}'#$D#$A;
-      end;
-      for df in Gen.FuncDefs do
-      if df.Platform = '' then
-      begin
-        s += '  ' + df.FuncDesc.Name + ' := ' + df.FuncDesc.Name + '_Direct;'#$D#$A;
-        if df.HasAlias then
-        begin
-          s += '  ' + df.AliasName + ' := ' + df.FuncDesc.Name + '_Direct'#$D#$A;
-        end;
+        s += PlatformEnd(Platform);
       end;
       s := s.TrimRight(#$D#$A);
     end;
