@@ -551,7 +551,7 @@ begin
 end;
 
 function THeaderGen.TranslateType(const TypeDesc: String; const Ptr: Integer = 0): String;
-  var DescArr: TUStrArr;
+  var DescArr: TUStrArray;
   var BaseType: String;
   var PtrCount: Integer;
   var LongCount: Integer;
@@ -856,7 +856,7 @@ begin
   for i := 0 to (Length(urls) shr 1) - 1 do
   begin
     Path := RootDir + '/xml/' + urls[i * 2];
-    if not FileExists(Path) then
+    //not FileExists(Path) then
     begin
       WriteLn('getting ', urls[i * 2]);
       TMyHttpClient.SimpleGet(urls[i * 2 + 1], Path);
