@@ -980,6 +980,7 @@ const
   GL_MAP_PERSISTENT_BIT_EXT = $00000040;
   GL_MAP_COHERENT_BIT = $00000080;
   GL_MAP_COHERENT_BIT_EXT = $00000080;
+  GL_MAP_CLIENT_POINTER_BIT_MESA = $00004000;
   GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT = $00000001;
   GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT_EXT = $00000001;
   GL_ELEMENT_ARRAY_BARRIER_BIT = $00000002;
@@ -1033,7 +1034,9 @@ const
   GL_TESS_EVALUATION_SHADER_BIT_OES = $00000010;
   GL_COMPUTE_SHADER_BIT = $00000020;
   GL_MESH_SHADER_BIT_NV = $00000040;
+  GL_MESH_SHADER_BIT_EXT = $00000040;
   GL_TASK_SHADER_BIT_NV = $00000080;
+  GL_TASK_SHADER_BIT_EXT = $00000080;
   GL_ALL_SHADER_BITS = $FFFFFFFF;
   GL_ALL_SHADER_BITS_EXT = $FFFFFFFF;
   GL_SUBGROUP_FEATURE_BASIC_BIT_KHR = $00000001;
@@ -4701,6 +4704,7 @@ const
   GL_FRAMEBUFFER_FLIP_Y_MESA = $00008BBB;
   GL_FRAMEBUFFER_FLIP_X_MESA = $00008BBC;
   GL_FRAMEBUFFER_SWAP_XY_MESA = $00008BBD;
+  GL_CONST_BW_TILING_MESA = $00008BBE;
   GL_COUNTER_TYPE_AMD = $00008BC0;
   GL_COUNTER_RANGE_AMD = $00008BC1;
   GL_UNSIGNED_INT64_AMD = $00008BC2;
@@ -5462,21 +5466,37 @@ const
   GL_MAX_PROGRAM_TEXTURE_GATHER_OFFSET = $00008E5F;
   GL_MAX_PROGRAM_TEXTURE_GATHER_OFFSET_ARB = $00008E5F;
   GL_MAX_PROGRAM_TEXTURE_GATHER_OFFSET_NV = $00008E5F;
+  GL_MAX_MESH_UNIFORM_BLOCKS_EXT = $00008E60;
   GL_MAX_MESH_UNIFORM_BLOCKS_NV = $00008E60;
+  GL_MAX_MESH_TEXTURE_IMAGE_UNITS_EXT = $00008E61;
   GL_MAX_MESH_TEXTURE_IMAGE_UNITS_NV = $00008E61;
+  GL_MAX_MESH_IMAGE_UNIFORMS_EXT = $00008E62;
   GL_MAX_MESH_IMAGE_UNIFORMS_NV = $00008E62;
+  GL_MAX_MESH_UNIFORM_COMPONENTS_EXT = $00008E63;
   GL_MAX_MESH_UNIFORM_COMPONENTS_NV = $00008E63;
+  GL_MAX_MESH_ATOMIC_COUNTER_BUFFERS_EXT = $00008E64;
   GL_MAX_MESH_ATOMIC_COUNTER_BUFFERS_NV = $00008E64;
+  GL_MAX_MESH_ATOMIC_COUNTERS_EXT = $00008E65;
   GL_MAX_MESH_ATOMIC_COUNTERS_NV = $00008E65;
+  GL_MAX_MESH_SHADER_STORAGE_BLOCKS_EXT = $00008E66;
   GL_MAX_MESH_SHADER_STORAGE_BLOCKS_NV = $00008E66;
+  GL_MAX_COMBINED_MESH_UNIFORM_COMPONENTS_EXT = $00008E67;
   GL_MAX_COMBINED_MESH_UNIFORM_COMPONENTS_NV = $00008E67;
+  GL_MAX_TASK_UNIFORM_BLOCKS_EXT = $00008E68;
   GL_MAX_TASK_UNIFORM_BLOCKS_NV = $00008E68;
+  GL_MAX_TASK_TEXTURE_IMAGE_UNITS_EXT = $00008E69;
   GL_MAX_TASK_TEXTURE_IMAGE_UNITS_NV = $00008E69;
+  GL_MAX_TASK_IMAGE_UNIFORMS_EXT = $00008E6A;
   GL_MAX_TASK_IMAGE_UNIFORMS_NV = $00008E6A;
+  GL_MAX_TASK_UNIFORM_COMPONENTS_EXT = $00008E6B;
   GL_MAX_TASK_UNIFORM_COMPONENTS_NV = $00008E6B;
+  GL_MAX_TASK_ATOMIC_COUNTER_BUFFERS_EXT = $00008E6C;
   GL_MAX_TASK_ATOMIC_COUNTER_BUFFERS_NV = $00008E6C;
+  GL_MAX_TASK_ATOMIC_COUNTERS_EXT = $00008E6D;
   GL_MAX_TASK_ATOMIC_COUNTERS_NV = $00008E6D;
+  GL_MAX_TASK_SHADER_STORAGE_BLOCKS_EXT = $00008E6E;
   GL_MAX_TASK_SHADER_STORAGE_BLOCKS_NV = $00008E6E;
+  GL_MAX_COMBINED_TASK_UNIFORM_COMPONENTS_EXT = $00008E6F;
   GL_MAX_COMBINED_TASK_UNIFORM_COMPONENTS_NV = $00008E6F;
   GL_MAX_TRANSFORM_FEEDBACK_BUFFERS = $00008E70;
   GL_MAX_VERTEX_STREAMS = $00008E71;
@@ -6386,6 +6406,7 @@ const
   GL_MAX_ATOMIC_COUNTER_BUFFER_BINDINGS = $000092DC;
   GL_FRAGMENT_COVERAGE_TO_COLOR_NV = $000092DD;
   GL_FRAGMENT_COVERAGE_COLOR_NV = $000092DE;
+  GL_MESH_OUTPUT_PER_VERTEX_GRANULARITY_EXT = $000092DF;
   GL_MESH_OUTPUT_PER_VERTEX_GRANULARITY_NV = $000092DF;
   GL_DEBUG_OUTPUT = $000092E0;
   GL_DEBUG_OUTPUT_KHR = $000092E0;
@@ -6677,16 +6698,20 @@ const
   GL_SUBGROUP_QUAD_ALL_STAGES_KHR = $00009535;
   GL_MAX_MESH_TOTAL_MEMORY_SIZE_NV = $00009536;
   GL_MAX_TASK_TOTAL_MEMORY_SIZE_NV = $00009537;
+  GL_MAX_MESH_OUTPUT_VERTICES_EXT = $00009538;
   GL_MAX_MESH_OUTPUT_VERTICES_NV = $00009538;
   GL_MAX_MESH_OUTPUT_PRIMITIVES_NV = $00009539;
   GL_MAX_TASK_OUTPUT_COUNT_NV = $0000953A;
   GL_MAX_MESH_WORK_GROUP_SIZE_NV = $0000953B;
   GL_MAX_TASK_WORK_GROUP_SIZE_NV = $0000953C;
   GL_MAX_DRAW_MESH_TASKS_COUNT_NV = $0000953D;
+  GL_MESH_WORK_GROUP_SIZE_EXT = $0000953E;
   GL_MESH_WORK_GROUP_SIZE_NV = $0000953E;
+  GL_TASK_WORK_GROUP_SIZE_EXT = $0000953F;
   GL_TASK_WORK_GROUP_SIZE_NV = $0000953F;
   GL_QUERY_RESOURCE_TYPE_VIDMEM_ALLOC_NV = $00009540;
   GL_QUERY_RESOURCE_MEMTYPE_VIDMEM_NV = $00009542;
+  GL_MESH_OUTPUT_PER_PRIMITIVE_GRANULARITY_EXT = $00009543;
   GL_MESH_OUTPUT_PER_PRIMITIVE_GRANULARITY_NV = $00009543;
   GL_QUERY_RESOURCE_SYS_RESERVED_NV = $00009544;
   GL_QUERY_RESOURCE_TEXTURE_NV = $00009545;
@@ -6707,9 +6732,12 @@ const
   GL_NUM_SPIR_V_EXTENSIONS = $00009554;
   GL_SCISSOR_TEST_EXCLUSIVE_NV = $00009555;
   GL_SCISSOR_BOX_EXCLUSIVE_NV = $00009556;
+  GL_MAX_MESH_MULTIVIEW_VIEW_COUNT_EXT = $00009557;
   GL_MAX_MESH_VIEWS_NV = $00009557;
   GL_RENDER_GPU_MASK_NV = $00009558;
+  GL_MESH_SHADER_EXT = $00009559;
   GL_MESH_SHADER_NV = $00009559;
+  GL_TASK_SHADER_EXT = $0000955A;
   GL_TASK_SHADER_NV = $0000955A;
   GL_SHADING_RATE_IMAGE_BINDING_NV = $0000955B;
   GL_SHADING_RATE_IMAGE_TEXEL_WIDTH_NV = $0000955C;
@@ -6729,12 +6757,19 @@ const
   GL_SHADING_RATE_4_INVOCATIONS_PER_PIXEL_NV = $0000956D;
   GL_SHADING_RATE_8_INVOCATIONS_PER_PIXEL_NV = $0000956E;
   GL_SHADING_RATE_16_INVOCATIONS_PER_PIXEL_NV = $0000956F;
+  GL_MESH_VERTICES_OUT_EXT = $00009579;
   GL_MESH_VERTICES_OUT_NV = $00009579;
+  GL_MESH_PRIMITIVES_OUT_EXT = $0000957A;
   GL_MESH_PRIMITIVES_OUT_NV = $0000957A;
+  GL_MESH_OUTPUT_TYPE_EXT = $0000957B;
   GL_MESH_OUTPUT_TYPE_NV = $0000957B;
+  GL_MESH_SUBROUTINE_EXT = $0000957C;
   GL_MESH_SUBROUTINE_NV = $0000957C;
+  GL_TASK_SUBROUTINE_EXT = $0000957D;
   GL_TASK_SUBROUTINE_NV = $0000957D;
+  GL_MESH_SUBROUTINE_UNIFORM_EXT = $0000957E;
   GL_MESH_SUBROUTINE_UNIFORM_NV = $0000957E;
+  GL_TASK_SUBROUTINE_UNIFORM_EXT = $0000957F;
   GL_TASK_SUBROUTINE_UNIFORM_NV = $0000957F;
   GL_TEXTURE_TILING_EXT = $00009580;
   GL_DEDICATED_MEMORY_OBJECT_EXT = $00009581;
@@ -6765,11 +6800,17 @@ const
   GL_DEVICE_LUID_EXT = $00009599;
   GL_DEVICE_NODE_MASK_EXT = $0000959A;
   GL_PROTECTED_MEMORY_OBJECT_EXT = $0000959B;
+  GL_UNIFORM_BLOCK_REFERENCED_BY_MESH_SHADER_EXT = $0000959C;
   GL_UNIFORM_BLOCK_REFERENCED_BY_MESH_SHADER_NV = $0000959C;
+  GL_UNIFORM_BLOCK_REFERENCED_BY_TASK_SHADER_EXT = $0000959D;
   GL_UNIFORM_BLOCK_REFERENCED_BY_TASK_SHADER_NV = $0000959D;
+  GL_ATOMIC_COUNTER_BUFFER_REFERENCED_BY_MESH_SHADER_EXT = $0000959E;
   GL_ATOMIC_COUNTER_BUFFER_REFERENCED_BY_MESH_SHADER_NV = $0000959E;
+  GL_ATOMIC_COUNTER_BUFFER_REFERENCED_BY_TASK_SHADER_EXT = $0000959F;
   GL_ATOMIC_COUNTER_BUFFER_REFERENCED_BY_TASK_SHADER_NV = $0000959F;
+  GL_REFERENCED_BY_MESH_SHADER_EXT = $000095A0;
   GL_REFERENCED_BY_MESH_SHADER_NV = $000095A0;
+  GL_REFERENCED_BY_TASK_SHADER_EXT = $000095A1;
   GL_REFERENCED_BY_TASK_SHADER_NV = $000095A1;
   GL_MAX_MESH_WORK_GROUP_INVOCATIONS_NV = $000095A2;
   GL_MAX_TASK_WORK_GROUP_INVOCATIONS_NV = $000095A3;
@@ -6862,6 +6903,39 @@ const
   GL_SHADER_CORE_PIXEL_RATE_ARM = $000096F4;
   GL_SHADER_CORE_TEXEL_RATE_ARM = $000096F5;
   GL_SHADER_CORE_FMA_RATE_ARM = $000096F6;
+  GL_TEXTURE_Y_DEGAMMA_QCOM = $00009710;
+  GL_TEXTURE_CBCR_DEGAMMA_QCOM = $00009711;
+  GL_MAX_TASK_WORK_GROUP_TOTAL_COUNT_EXT = $00009740;
+  GL_MAX_MESH_WORK_GROUP_TOTAL_COUNT_EXT = $00009741;
+  GL_MAX_TASK_PAYLOAD_SIZE_EXT = $00009742;
+  GL_MAX_TASK_SHARED_MEMORY_SIZE_EXT = $00009743;
+  GL_MAX_MESH_SHARED_MEMORY_SIZE_EXT = $00009744;
+  GL_MAX_TASK_PAYLOAD_AND_SHARED_MEMORY_SIZE_EXT = $00009745;
+  GL_MAX_MESH_PAYLOAD_AND_SHARED_MEMORY_SIZE_EXT = $00009746;
+  GL_MAX_MESH_OUTPUT_MEMORY_SIZE_EXT = $00009747;
+  GL_MAX_MESH_PAYLOAD_AND_OUTPUT_MEMORY_SIZE_EXT = $00009748;
+  GL_MAX_MESH_OUTPUT_COMPONENTS_EXT = $00009749;
+  GL_MAX_MESH_OUTPUT_LAYERS_EXT = $0000974A;
+  GL_MAX_PREFERRED_TASK_WORK_GROUP_INVOCATIONS_EXT = $0000974B;
+  GL_MAX_PREFERRED_MESH_WORK_GROUP_INVOCATIONS_EXT = $0000974C;
+  GL_MESH_PREFERS_LOCAL_INVOCATION_VERTEX_OUTPUT_EXT = $0000974D;
+  GL_MESH_PREFERS_LOCAL_INVOCATION_PRIMITIVE_OUTPUT_EXT = $0000974E;
+  GL_MESH_PREFERS_COMPACT_VERTEX_OUTPUT_EXT = $0000974F;
+  GL_MESH_PREFERS_COMPACT_PRIMITIVE_OUTPUT_EXT = $00009750;
+  GL_MAX_TASK_WORK_GROUP_COUNT_EXT = $00009751;
+  GL_MAX_MESH_WORK_GROUP_COUNT_EXT = $00009752;
+  GL_TASK_SHADER_INVOCATIONS_EXT = $00009753;
+  GL_MESH_SHADER_INVOCATIONS_EXT = $00009754;
+  GL_MESH_PRIMITIVES_GENERATED_EXT = $00009755;
+  GL_MAX_MESH_OUTPUT_PRIMITIVES_EXT = $00009756;
+  GL_MAX_MESH_WORK_GROUP_INVOCATIONS_EXT = $00009757;
+  GL_MAX_MESH_WORK_GROUP_SIZE_EXT = $00009758;
+  GL_MAX_TASK_WORK_GROUP_INVOCATIONS_EXT = $00009759;
+  GL_MAX_TASK_WORK_GROUP_SIZE_EXT = $0000975A;
+  GL_SHADER_BINARY_HUAWEI = $00009770;
+  GL_PROGRAM_BINARY_HUAWEI = $00009771;
+  GL_FRAGMENT_SHADING_RATE_PRIMITIVE_RATE_WITH_MULTI_VIEWPORT_SUPPORTED_EXT = $00009780;
+  GL_BUFFER_CLIENT_POINTER_SIZE_MESA = $00009790;
   GL_RASTER_POSITION_UNCLIPPED_IBM = $00019262;
   GL_CULL_VERTEX_IBM = $0001928A;
   GL_ALL_STATIC_DATA_IBM = $00019294;
@@ -7200,6 +7274,7 @@ type
   TglActiveTexture = procedure (texture: GLenum); libdecl;
   TglActiveTextureARB = procedure (texture: GLenum); libdecl;
   TglActiveVaryingNV = procedure (_program: GLuint; const name: PGLchar); libdecl;
+  TglAddClientPointerRangeMESA = procedure (addr: Pointer; size: GLsizeiptr); libdecl;
   TglAlphaFragmentOp1ATI = procedure (op: GLenum; dst: GLuint; dstMod: GLuint; arg1: GLuint; arg1Rep: GLuint; arg1Mod: GLuint); libdecl;
   TglAlphaFragmentOp2ATI = procedure (op: GLenum; dst: GLuint; dstMod: GLuint; arg1: GLuint; arg1Rep: GLuint; arg1Mod: GLuint; arg2: GLuint; arg2Rep: GLuint; arg2Mod: GLuint); libdecl;
   TglAlphaFragmentOp3ATI = procedure (op: GLenum; dst: GLuint; dstMod: GLuint; arg1: GLuint; arg1Rep: GLuint; arg1Mod: GLuint; arg2: GLuint; arg2Rep: GLuint; arg2Mod: GLuint; arg3: GLuint; arg3Rep: GLuint; arg3Mod: GLuint); libdecl;
@@ -7780,7 +7855,9 @@ type
   TglDrawElementsInstancedEXT = procedure (mode: GLenum; count: GLsizei; _type: GLenum; const indices: Pointer; primcount: GLsizei); libdecl;
   TglDrawElementsInstancedNV = procedure (mode: GLenum; count: GLsizei; _type: GLenum; const indices: Pointer; primcount: GLsizei); libdecl;
   TglDrawMeshArraysSUN = procedure (mode: GLenum; first: GLint; count: GLsizei; width: GLsizei); libdecl;
+  TglDrawMeshTasksEXT = procedure (num_groups_x: GLuint; num_groups_y: GLuint; num_groups_z: GLuint); libdecl;
   TglDrawMeshTasksNV = procedure (first: GLuint; count: GLuint); libdecl;
+  TglDrawMeshTasksIndirectEXT = procedure (indirect: GLintptr); libdecl;
   TglDrawMeshTasksIndirectNV = procedure (indirect: GLintptr); libdecl;
   TglDrawPixels = procedure (width: GLsizei; height: GLsizei; format: GLenum; _type: GLenum; const pixels: Pointer); libdecl;
   TglDrawRangeElementArrayAPPLE = procedure (mode: GLenum; start: GLuint; _end: GLuint; first: GLint; count: GLsizei); libdecl;
@@ -8116,7 +8193,7 @@ type
   TglGetFinalCombinerInputParameterfvNV = procedure (variable: GLenum; pname: GLenum; params: PGLfloat); libdecl;
   TglGetFinalCombinerInputParameterivNV = procedure (variable: GLenum; pname: GLenum; params: PGLint); libdecl;
   TglGetFirstPerfQueryIdINTEL = procedure (queryId: PGLuint); libdecl;
-  TglGetFixedv = procedure (pname: GLenum; params: PGLfixed); libdecl;
+  TglGetFixedv = procedure (pname: GLenum; data: PGLfixed); libdecl;
   TglGetFixedvOES = procedure (pname: GLenum; params: PGLfixed); libdecl;
   TglGetFloatIndexedvEXT = procedure (target: GLenum; index: GLuint; data: PGLfloat); libdecl;
   TglGetFloati_v = procedure (target: GLenum; index: GLuint; data: PGLfloat); libdecl;
@@ -8826,7 +8903,9 @@ type
   TglMultiDrawElementsIndirectCount = procedure (mode: GLenum; _type: GLenum; const indirect: Pointer; drawcount: GLintptr; maxdrawcount: GLsizei; stride: GLsizei); libdecl;
   TglMultiDrawElementsIndirectCountARB = procedure (mode: GLenum; _type: GLenum; const indirect: Pointer; drawcount: GLintptr; maxdrawcount: GLsizei; stride: GLsizei); libdecl;
   TglMultiDrawElementsIndirectEXT = procedure (mode: GLenum; _type: GLenum; const indirect: Pointer; drawcount: GLsizei; stride: GLsizei); libdecl;
+  TglMultiDrawMeshTasksIndirectEXT = procedure (indirect: GLintptr; drawcount: GLsizei; stride: GLsizei); libdecl;
   TglMultiDrawMeshTasksIndirectNV = procedure (indirect: GLintptr; drawcount: GLsizei; stride: GLsizei); libdecl;
+  TglMultiDrawMeshTasksIndirectCountEXT = procedure (indirect: GLintptr; drawcount: GLintptr; maxdrawcount: GLsizei; stride: GLsizei); libdecl;
   TglMultiDrawMeshTasksIndirectCountNV = procedure (indirect: GLintptr; drawcount: GLintptr; maxdrawcount: GLsizei; stride: GLsizei); libdecl;
   TglMultiDrawRangeElementArrayAPPLE = procedure (mode: GLenum; start: GLuint; _end: GLuint; const first: PGLint; const count: PGLsizei; primcount: GLsizei); libdecl;
   TglMultiModeDrawArraysIBM = procedure (const mode: PGLenum; const first: PGLint; const count: PGLsizei; primcount: GLsizei; modestride: GLint); libdecl;
@@ -8998,6 +9077,7 @@ type
   TglNamedFramebufferTextureFaceEXT = procedure (framebuffer: GLuint; attachment: GLenum; texture: GLuint; level: GLint; face: GLenum); libdecl;
   TglNamedFramebufferTextureLayer = procedure (framebuffer: GLuint; attachment: GLenum; texture: GLuint; level: GLint; layer: GLint); libdecl;
   TglNamedFramebufferTextureLayerEXT = procedure (framebuffer: GLuint; attachment: GLenum; texture: GLuint; level: GLint; layer: GLint); libdecl;
+  TglNamedFramebufferTextureMultiviewOVR = procedure (framebuffer: GLuint; attachment: GLenum; texture: GLuint; level: GLint; baseViewIndex: GLint; numViews: GLsizei); libdecl;
   TglNamedProgramLocalParameter4dEXT = procedure (_program: GLuint; target: GLenum; index: GLuint; x: GLdouble; y: GLdouble; z: GLdouble; w: GLdouble); libdecl;
   TglNamedProgramLocalParameter4dvEXT = procedure (_program: GLuint; target: GLenum; index: GLuint; const params: PGLdouble); libdecl;
   TglNamedProgramLocalParameter4fEXT = procedure (_program: GLuint; target: GLenum; index: GLuint; x: GLfloat; y: GLfloat; z: GLfloat; w: GLfloat); libdecl;
@@ -9421,6 +9501,7 @@ type
   TglRectxOES = procedure (x1: GLfixed; y1: GLfixed; x2: GLfixed; y2: GLfixed); libdecl;
   TglRectxvOES = procedure (const v1: PGLfixed; const v2: PGLfixed); libdecl;
   TglReferencePlaneSGIX = procedure (const equation: PGLdouble); libdecl;
+  TglReleaseClientPointerRangeMESA = function (size: PGLsizeiptr): Pointer; libdecl;
   TglReleaseShaderCompiler = procedure; libdecl;
   TglRenderGpuMaskNV = procedure (mask: GLbitfield); libdecl;
   TglRenderMode = function (mode: GLenum): GLint; libdecl;
@@ -10779,6 +10860,7 @@ var
   glActiveTexture: TglActiveTexture;
   glActiveTextureARB: TglActiveTextureARB;
   glActiveVaryingNV: TglActiveVaryingNV;
+  glAddClientPointerRangeMESA: TglAddClientPointerRangeMESA;
   glAlphaFragmentOp1ATI: TglAlphaFragmentOp1ATI;
   glAlphaFragmentOp2ATI: TglAlphaFragmentOp2ATI;
   glAlphaFragmentOp3ATI: TglAlphaFragmentOp3ATI;
@@ -11359,7 +11441,9 @@ var
   glDrawElementsInstancedEXT: TglDrawElementsInstancedEXT;
   glDrawElementsInstancedNV: TglDrawElementsInstancedNV;
   glDrawMeshArraysSUN: TglDrawMeshArraysSUN;
+  glDrawMeshTasksEXT: TglDrawMeshTasksEXT;
   glDrawMeshTasksNV: TglDrawMeshTasksNV;
+  glDrawMeshTasksIndirectEXT: TglDrawMeshTasksIndirectEXT;
   glDrawMeshTasksIndirectNV: TglDrawMeshTasksIndirectNV;
   glDrawPixels: TglDrawPixels;
   glDrawRangeElementArrayAPPLE: TglDrawRangeElementArrayAPPLE;
@@ -12405,7 +12489,9 @@ var
   glMultiDrawElementsIndirectCount: TglMultiDrawElementsIndirectCount;
   glMultiDrawElementsIndirectCountARB: TglMultiDrawElementsIndirectCountARB;
   glMultiDrawElementsIndirectEXT: TglMultiDrawElementsIndirectEXT;
+  glMultiDrawMeshTasksIndirectEXT: TglMultiDrawMeshTasksIndirectEXT;
   glMultiDrawMeshTasksIndirectNV: TglMultiDrawMeshTasksIndirectNV;
+  glMultiDrawMeshTasksIndirectCountEXT: TglMultiDrawMeshTasksIndirectCountEXT;
   glMultiDrawMeshTasksIndirectCountNV: TglMultiDrawMeshTasksIndirectCountNV;
   glMultiDrawRangeElementArrayAPPLE: TglMultiDrawRangeElementArrayAPPLE;
   glMultiModeDrawArraysIBM: TglMultiModeDrawArraysIBM;
@@ -12577,6 +12663,7 @@ var
   glNamedFramebufferTextureFaceEXT: TglNamedFramebufferTextureFaceEXT;
   glNamedFramebufferTextureLayer: TglNamedFramebufferTextureLayer;
   glNamedFramebufferTextureLayerEXT: TglNamedFramebufferTextureLayerEXT;
+  glNamedFramebufferTextureMultiviewOVR: TglNamedFramebufferTextureMultiviewOVR;
   glNamedProgramLocalParameter4dEXT: TglNamedProgramLocalParameter4dEXT;
   glNamedProgramLocalParameter4dvEXT: TglNamedProgramLocalParameter4dvEXT;
   glNamedProgramLocalParameter4fEXT: TglNamedProgramLocalParameter4fEXT;
@@ -13000,6 +13087,7 @@ var
   glRectxOES: TglRectxOES;
   glRectxvOES: TglRectxvOES;
   glReferencePlaneSGIX: TglReferencePlaneSGIX;
+  glReleaseClientPointerRangeMESA: TglReleaseClientPointerRangeMESA;
   glReleaseShaderCompiler: TglReleaseShaderCompiler;
   glRenderGpuMaskNV: TglRenderGpuMaskNV;
   glRenderMode: TglRenderMode;
@@ -14087,6 +14175,7 @@ procedure glSetDebugMode(const Value: Boolean);
 var glSharedDC: HDC;
 var glSharedContext: HGLRC;
 {$elseif defined(LINUX)}
+var glSharedDisplay: PDisplay;
 var glSharedWindow: TWindow;
 var glSharedContext: TGLXContext;
 {$endif}
@@ -14492,6 +14581,7 @@ var
   glActiveTexture_Direct: TglActiveTexture;
   glActiveTextureARB_Direct: TglActiveTextureARB;
   glActiveVaryingNV_Direct: TglActiveVaryingNV;
+  glAddClientPointerRangeMESA_Direct: TglAddClientPointerRangeMESA;
   glAlphaFragmentOp1ATI_Direct: TglAlphaFragmentOp1ATI;
   glAlphaFragmentOp2ATI_Direct: TglAlphaFragmentOp2ATI;
   glAlphaFragmentOp3ATI_Direct: TglAlphaFragmentOp3ATI;
@@ -15072,7 +15162,9 @@ var
   glDrawElementsInstancedEXT_Direct: TglDrawElementsInstancedEXT;
   glDrawElementsInstancedNV_Direct: TglDrawElementsInstancedNV;
   glDrawMeshArraysSUN_Direct: TglDrawMeshArraysSUN;
+  glDrawMeshTasksEXT_Direct: TglDrawMeshTasksEXT;
   glDrawMeshTasksNV_Direct: TglDrawMeshTasksNV;
+  glDrawMeshTasksIndirectEXT_Direct: TglDrawMeshTasksIndirectEXT;
   glDrawMeshTasksIndirectNV_Direct: TglDrawMeshTasksIndirectNV;
   glDrawPixels_Direct: TglDrawPixels;
   glDrawRangeElementArrayAPPLE_Direct: TglDrawRangeElementArrayAPPLE;
@@ -16118,7 +16210,9 @@ var
   glMultiDrawElementsIndirectCount_Direct: TglMultiDrawElementsIndirectCount;
   glMultiDrawElementsIndirectCountARB_Direct: TglMultiDrawElementsIndirectCountARB;
   glMultiDrawElementsIndirectEXT_Direct: TglMultiDrawElementsIndirectEXT;
+  glMultiDrawMeshTasksIndirectEXT_Direct: TglMultiDrawMeshTasksIndirectEXT;
   glMultiDrawMeshTasksIndirectNV_Direct: TglMultiDrawMeshTasksIndirectNV;
+  glMultiDrawMeshTasksIndirectCountEXT_Direct: TglMultiDrawMeshTasksIndirectCountEXT;
   glMultiDrawMeshTasksIndirectCountNV_Direct: TglMultiDrawMeshTasksIndirectCountNV;
   glMultiDrawRangeElementArrayAPPLE_Direct: TglMultiDrawRangeElementArrayAPPLE;
   glMultiModeDrawArraysIBM_Direct: TglMultiModeDrawArraysIBM;
@@ -16290,6 +16384,7 @@ var
   glNamedFramebufferTextureFaceEXT_Direct: TglNamedFramebufferTextureFaceEXT;
   glNamedFramebufferTextureLayer_Direct: TglNamedFramebufferTextureLayer;
   glNamedFramebufferTextureLayerEXT_Direct: TglNamedFramebufferTextureLayerEXT;
+  glNamedFramebufferTextureMultiviewOVR_Direct: TglNamedFramebufferTextureMultiviewOVR;
   glNamedProgramLocalParameter4dEXT_Direct: TglNamedProgramLocalParameter4dEXT;
   glNamedProgramLocalParameter4dvEXT_Direct: TglNamedProgramLocalParameter4dvEXT;
   glNamedProgramLocalParameter4fEXT_Direct: TglNamedProgramLocalParameter4fEXT;
@@ -16713,6 +16808,7 @@ var
   glRectxOES_Direct: TglRectxOES;
   glRectxvOES_Direct: TglRectxvOES;
   glReferencePlaneSGIX_Direct: TglReferencePlaneSGIX;
+  glReleaseClientPointerRangeMESA_Direct: TglReleaseClientPointerRangeMESA;
   glReleaseShaderCompiler_Direct: TglReleaseShaderCompiler;
   glRenderGpuMaskNV_Direct: TglRenderGpuMaskNV;
   glRenderMode_Direct: TglRenderMode;
@@ -18074,6 +18170,7 @@ begin
   glActiveTexture_Direct := TglActiveTexture(ProcAddress('glActiveTexture'));
   glActiveTextureARB_Direct := TglActiveTextureARB(ProcAddress('glActiveTextureARB'));
   glActiveVaryingNV_Direct := TglActiveVaryingNV(ProcAddress('glActiveVaryingNV'));
+  glAddClientPointerRangeMESA_Direct := TglAddClientPointerRangeMESA(ProcAddress('glAddClientPointerRangeMESA'));
   glAlphaFragmentOp1ATI_Direct := TglAlphaFragmentOp1ATI(ProcAddress('glAlphaFragmentOp1ATI'));
   glAlphaFragmentOp2ATI_Direct := TglAlphaFragmentOp2ATI(ProcAddress('glAlphaFragmentOp2ATI'));
   glAlphaFragmentOp3ATI_Direct := TglAlphaFragmentOp3ATI(ProcAddress('glAlphaFragmentOp3ATI'));
@@ -18654,7 +18751,9 @@ begin
   glDrawElementsInstancedEXT_Direct := TglDrawElementsInstancedEXT(ProcAddress('glDrawElementsInstancedEXT'));
   glDrawElementsInstancedNV_Direct := TglDrawElementsInstancedNV(ProcAddress('glDrawElementsInstancedNV'));
   glDrawMeshArraysSUN_Direct := TglDrawMeshArraysSUN(ProcAddress('glDrawMeshArraysSUN'));
+  glDrawMeshTasksEXT_Direct := TglDrawMeshTasksEXT(ProcAddress('glDrawMeshTasksEXT'));
   glDrawMeshTasksNV_Direct := TglDrawMeshTasksNV(ProcAddress('glDrawMeshTasksNV'));
+  glDrawMeshTasksIndirectEXT_Direct := TglDrawMeshTasksIndirectEXT(ProcAddress('glDrawMeshTasksIndirectEXT'));
   glDrawMeshTasksIndirectNV_Direct := TglDrawMeshTasksIndirectNV(ProcAddress('glDrawMeshTasksIndirectNV'));
   glDrawPixels_Direct := TglDrawPixels(ProcAddress('glDrawPixels'));
   glDrawRangeElementArrayAPPLE_Direct := TglDrawRangeElementArrayAPPLE(ProcAddress('glDrawRangeElementArrayAPPLE'));
@@ -19700,7 +19799,9 @@ begin
   glMultiDrawElementsIndirectCount_Direct := TglMultiDrawElementsIndirectCount(ProcAddress('glMultiDrawElementsIndirectCount'));
   glMultiDrawElementsIndirectCountARB_Direct := TglMultiDrawElementsIndirectCountARB(ProcAddress('glMultiDrawElementsIndirectCountARB'));
   glMultiDrawElementsIndirectEXT_Direct := TglMultiDrawElementsIndirectEXT(ProcAddress('glMultiDrawElementsIndirectEXT'));
+  glMultiDrawMeshTasksIndirectEXT_Direct := TglMultiDrawMeshTasksIndirectEXT(ProcAddress('glMultiDrawMeshTasksIndirectEXT'));
   glMultiDrawMeshTasksIndirectNV_Direct := TglMultiDrawMeshTasksIndirectNV(ProcAddress('glMultiDrawMeshTasksIndirectNV'));
+  glMultiDrawMeshTasksIndirectCountEXT_Direct := TglMultiDrawMeshTasksIndirectCountEXT(ProcAddress('glMultiDrawMeshTasksIndirectCountEXT'));
   glMultiDrawMeshTasksIndirectCountNV_Direct := TglMultiDrawMeshTasksIndirectCountNV(ProcAddress('glMultiDrawMeshTasksIndirectCountNV'));
   glMultiDrawRangeElementArrayAPPLE_Direct := TglMultiDrawRangeElementArrayAPPLE(ProcAddress('glMultiDrawRangeElementArrayAPPLE'));
   glMultiModeDrawArraysIBM_Direct := TglMultiModeDrawArraysIBM(ProcAddress('glMultiModeDrawArraysIBM'));
@@ -19872,6 +19973,7 @@ begin
   glNamedFramebufferTextureFaceEXT_Direct := TglNamedFramebufferTextureFaceEXT(ProcAddress('glNamedFramebufferTextureFaceEXT'));
   glNamedFramebufferTextureLayer_Direct := TglNamedFramebufferTextureLayer(ProcAddress('glNamedFramebufferTextureLayer'));
   glNamedFramebufferTextureLayerEXT_Direct := TglNamedFramebufferTextureLayerEXT(ProcAddress('glNamedFramebufferTextureLayerEXT'));
+  glNamedFramebufferTextureMultiviewOVR_Direct := TglNamedFramebufferTextureMultiviewOVR(ProcAddress('glNamedFramebufferTextureMultiviewOVR'));
   glNamedProgramLocalParameter4dEXT_Direct := TglNamedProgramLocalParameter4dEXT(ProcAddress('glNamedProgramLocalParameter4dEXT'));
   glNamedProgramLocalParameter4dvEXT_Direct := TglNamedProgramLocalParameter4dvEXT(ProcAddress('glNamedProgramLocalParameter4dvEXT'));
   glNamedProgramLocalParameter4fEXT_Direct := TglNamedProgramLocalParameter4fEXT(ProcAddress('glNamedProgramLocalParameter4fEXT'));
@@ -20295,6 +20397,7 @@ begin
   glRectxOES_Direct := TglRectxOES(ProcAddress('glRectxOES'));
   glRectxvOES_Direct := TglRectxvOES(ProcAddress('glRectxvOES'));
   glReferencePlaneSGIX_Direct := TglReferencePlaneSGIX(ProcAddress('glReferencePlaneSGIX'));
+  glReleaseClientPointerRangeMESA_Direct := TglReleaseClientPointerRangeMESA(ProcAddress('glReleaseClientPointerRangeMESA'));
   glReleaseShaderCompiler_Direct := TglReleaseShaderCompiler(ProcAddress('glReleaseShaderCompiler'));
   glRenderGpuMaskNV_Direct := TglRenderGpuMaskNV(ProcAddress('glRenderGpuMaskNV'));
   glRenderMode_Direct := TglRenderMode(ProcAddress('glRenderMode'));
@@ -22809,6 +22912,11 @@ procedure glActiveVaryingNV_Debug(_program: GLuint; const name: PGLchar) libdecl
 begin
   glDebugFrame := get_frame;
   glActiveVaryingNV_Direct(_program, name);
+end;
+procedure glAddClientPointerRangeMESA_Debug(addr: Pointer; size: GLsizeiptr) libdecl;
+begin
+  glDebugFrame := get_frame;
+  glAddClientPointerRangeMESA_Direct(addr, size);
 end;
 procedure glAlphaFragmentOp1ATI_Debug(op: GLenum; dst: GLuint; dstMod: GLuint; arg1: GLuint; arg1Rep: GLuint; arg1Mod: GLuint) libdecl;
 begin
@@ -25710,10 +25818,20 @@ begin
   glDebugFrame := get_frame;
   glDrawMeshArraysSUN_Direct(mode, first, count, width);
 end;
+procedure glDrawMeshTasksEXT_Debug(num_groups_x: GLuint; num_groups_y: GLuint; num_groups_z: GLuint) libdecl;
+begin
+  glDebugFrame := get_frame;
+  glDrawMeshTasksEXT_Direct(num_groups_x, num_groups_y, num_groups_z);
+end;
 procedure glDrawMeshTasksNV_Debug(first: GLuint; count: GLuint) libdecl;
 begin
   glDebugFrame := get_frame;
   glDrawMeshTasksNV_Direct(first, count);
+end;
+procedure glDrawMeshTasksIndirectEXT_Debug(indirect: GLintptr) libdecl;
+begin
+  glDebugFrame := get_frame;
+  glDrawMeshTasksIndirectEXT_Direct(indirect);
 end;
 procedure glDrawMeshTasksIndirectNV_Debug(indirect: GLintptr) libdecl;
 begin
@@ -27390,10 +27508,10 @@ begin
   glDebugFrame := get_frame;
   glGetFirstPerfQueryIdINTEL_Direct(queryId);
 end;
-procedure glGetFixedv_Debug(pname: GLenum; params: PGLfixed) libdecl;
+procedure glGetFixedv_Debug(pname: GLenum; data: PGLfixed) libdecl;
 begin
   glDebugFrame := get_frame;
-  glGetFixedv_Direct(pname, params);
+  glGetFixedv_Direct(pname, data);
 end;
 procedure glGetFixedvOES_Debug(pname: GLenum; params: PGLfixed) libdecl;
 begin
@@ -30940,10 +31058,20 @@ begin
   glDebugFrame := get_frame;
   glMultiDrawElementsIndirectEXT_Direct(mode, _type, indirect, drawcount, stride);
 end;
+procedure glMultiDrawMeshTasksIndirectEXT_Debug(indirect: GLintptr; drawcount: GLsizei; stride: GLsizei) libdecl;
+begin
+  glDebugFrame := get_frame;
+  glMultiDrawMeshTasksIndirectEXT_Direct(indirect, drawcount, stride);
+end;
 procedure glMultiDrawMeshTasksIndirectNV_Debug(indirect: GLintptr; drawcount: GLsizei; stride: GLsizei) libdecl;
 begin
   glDebugFrame := get_frame;
   glMultiDrawMeshTasksIndirectNV_Direct(indirect, drawcount, stride);
+end;
+procedure glMultiDrawMeshTasksIndirectCountEXT_Debug(indirect: GLintptr; drawcount: GLintptr; maxdrawcount: GLsizei; stride: GLsizei) libdecl;
+begin
+  glDebugFrame := get_frame;
+  glMultiDrawMeshTasksIndirectCountEXT_Direct(indirect, drawcount, maxdrawcount, stride);
 end;
 procedure glMultiDrawMeshTasksIndirectCountNV_Debug(indirect: GLintptr; drawcount: GLintptr; maxdrawcount: GLsizei; stride: GLsizei) libdecl;
 begin
@@ -31799,6 +31927,11 @@ procedure glNamedFramebufferTextureLayerEXT_Debug(framebuffer: GLuint; attachmen
 begin
   glDebugFrame := get_frame;
   glNamedFramebufferTextureLayerEXT_Direct(framebuffer, attachment, texture, level, layer);
+end;
+procedure glNamedFramebufferTextureMultiviewOVR_Debug(framebuffer: GLuint; attachment: GLenum; texture: GLuint; level: GLint; baseViewIndex: GLint; numViews: GLsizei) libdecl;
+begin
+  glDebugFrame := get_frame;
+  glNamedFramebufferTextureMultiviewOVR_Direct(framebuffer, attachment, texture, level, baseViewIndex, numViews);
 end;
 procedure glNamedProgramLocalParameter4dEXT_Debug(_program: GLuint; target: GLenum; index: GLuint; x: GLdouble; y: GLdouble; z: GLdouble; w: GLdouble) libdecl;
 begin
@@ -33914,6 +34047,11 @@ procedure glReferencePlaneSGIX_Debug(const equation: PGLdouble) libdecl;
 begin
   glDebugFrame := get_frame;
   glReferencePlaneSGIX_Direct(equation);
+end;
+function glReleaseClientPointerRangeMESA_Debug(size: PGLsizeiptr): Pointer libdecl;
+begin
+  glDebugFrame := get_frame;
+  Result := glReleaseClientPointerRangeMESA_Direct(size);
 end;
 procedure glReleaseShaderCompiler_Debug() libdecl;
 begin
@@ -39531,6 +39669,7 @@ begin
   glActiveTexture := @glActiveTexture_Debug;
   glActiveTextureARB := @glActiveTextureARB_Debug;
   glActiveVaryingNV := @glActiveVaryingNV_Debug;
+  glAddClientPointerRangeMESA := @glAddClientPointerRangeMESA_Debug;
   glAlphaFragmentOp1ATI := @glAlphaFragmentOp1ATI_Debug;
   glAlphaFragmentOp2ATI := @glAlphaFragmentOp2ATI_Debug;
   glAlphaFragmentOp3ATI := @glAlphaFragmentOp3ATI_Debug;
@@ -40111,7 +40250,9 @@ begin
   glDrawElementsInstancedEXT := @glDrawElementsInstancedEXT_Debug;
   glDrawElementsInstancedNV := @glDrawElementsInstancedNV_Debug;
   glDrawMeshArraysSUN := @glDrawMeshArraysSUN_Debug;
+  glDrawMeshTasksEXT := @glDrawMeshTasksEXT_Debug;
   glDrawMeshTasksNV := @glDrawMeshTasksNV_Debug;
+  glDrawMeshTasksIndirectEXT := @glDrawMeshTasksIndirectEXT_Debug;
   glDrawMeshTasksIndirectNV := @glDrawMeshTasksIndirectNV_Debug;
   glDrawPixels := @glDrawPixels_Debug;
   glDrawRangeElementArrayAPPLE := @glDrawRangeElementArrayAPPLE_Debug;
@@ -41157,7 +41298,9 @@ begin
   glMultiDrawElementsIndirectCount := @glMultiDrawElementsIndirectCount_Debug;
   glMultiDrawElementsIndirectCountARB := @glMultiDrawElementsIndirectCountARB_Debug;
   glMultiDrawElementsIndirectEXT := @glMultiDrawElementsIndirectEXT_Debug;
+  glMultiDrawMeshTasksIndirectEXT := @glMultiDrawMeshTasksIndirectEXT_Debug;
   glMultiDrawMeshTasksIndirectNV := @glMultiDrawMeshTasksIndirectNV_Debug;
+  glMultiDrawMeshTasksIndirectCountEXT := @glMultiDrawMeshTasksIndirectCountEXT_Debug;
   glMultiDrawMeshTasksIndirectCountNV := @glMultiDrawMeshTasksIndirectCountNV_Debug;
   glMultiDrawRangeElementArrayAPPLE := @glMultiDrawRangeElementArrayAPPLE_Debug;
   glMultiModeDrawArraysIBM := @glMultiModeDrawArraysIBM_Debug;
@@ -41329,6 +41472,7 @@ begin
   glNamedFramebufferTextureFaceEXT := @glNamedFramebufferTextureFaceEXT_Debug;
   glNamedFramebufferTextureLayer := @glNamedFramebufferTextureLayer_Debug;
   glNamedFramebufferTextureLayerEXT := @glNamedFramebufferTextureLayerEXT_Debug;
+  glNamedFramebufferTextureMultiviewOVR := @glNamedFramebufferTextureMultiviewOVR_Debug;
   glNamedProgramLocalParameter4dEXT := @glNamedProgramLocalParameter4dEXT_Debug;
   glNamedProgramLocalParameter4dvEXT := @glNamedProgramLocalParameter4dvEXT_Debug;
   glNamedProgramLocalParameter4fEXT := @glNamedProgramLocalParameter4fEXT_Debug;
@@ -41752,6 +41896,7 @@ begin
   glRectxOES := @glRectxOES_Debug;
   glRectxvOES := @glRectxvOES_Debug;
   glReferencePlaneSGIX := @glReferencePlaneSGIX_Debug;
+  glReleaseClientPointerRangeMESA := @glReleaseClientPointerRangeMESA_Debug;
   glReleaseShaderCompiler := @glReleaseShaderCompiler_Debug;
   glRenderGpuMaskNV := @glRenderGpuMaskNV_Debug;
   glRenderMode := @glRenderMode_Debug;
@@ -43113,6 +43258,7 @@ begin
   glActiveTexture := glActiveTexture_Direct;
   glActiveTextureARB := glActiveTextureARB_Direct;
   glActiveVaryingNV := glActiveVaryingNV_Direct;
+  glAddClientPointerRangeMESA := glAddClientPointerRangeMESA_Direct;
   glAlphaFragmentOp1ATI := glAlphaFragmentOp1ATI_Direct;
   glAlphaFragmentOp2ATI := glAlphaFragmentOp2ATI_Direct;
   glAlphaFragmentOp3ATI := glAlphaFragmentOp3ATI_Direct;
@@ -43693,7 +43839,9 @@ begin
   glDrawElementsInstancedEXT := glDrawElementsInstancedEXT_Direct;
   glDrawElementsInstancedNV := glDrawElementsInstancedNV_Direct;
   glDrawMeshArraysSUN := glDrawMeshArraysSUN_Direct;
+  glDrawMeshTasksEXT := glDrawMeshTasksEXT_Direct;
   glDrawMeshTasksNV := glDrawMeshTasksNV_Direct;
+  glDrawMeshTasksIndirectEXT := glDrawMeshTasksIndirectEXT_Direct;
   glDrawMeshTasksIndirectNV := glDrawMeshTasksIndirectNV_Direct;
   glDrawPixels := glDrawPixels_Direct;
   glDrawRangeElementArrayAPPLE := glDrawRangeElementArrayAPPLE_Direct;
@@ -44739,7 +44887,9 @@ begin
   glMultiDrawElementsIndirectCount := glMultiDrawElementsIndirectCount_Direct;
   glMultiDrawElementsIndirectCountARB := glMultiDrawElementsIndirectCountARB_Direct;
   glMultiDrawElementsIndirectEXT := glMultiDrawElementsIndirectEXT_Direct;
+  glMultiDrawMeshTasksIndirectEXT := glMultiDrawMeshTasksIndirectEXT_Direct;
   glMultiDrawMeshTasksIndirectNV := glMultiDrawMeshTasksIndirectNV_Direct;
+  glMultiDrawMeshTasksIndirectCountEXT := glMultiDrawMeshTasksIndirectCountEXT_Direct;
   glMultiDrawMeshTasksIndirectCountNV := glMultiDrawMeshTasksIndirectCountNV_Direct;
   glMultiDrawRangeElementArrayAPPLE := glMultiDrawRangeElementArrayAPPLE_Direct;
   glMultiModeDrawArraysIBM := glMultiModeDrawArraysIBM_Direct;
@@ -44911,6 +45061,7 @@ begin
   glNamedFramebufferTextureFaceEXT := glNamedFramebufferTextureFaceEXT_Direct;
   glNamedFramebufferTextureLayer := glNamedFramebufferTextureLayer_Direct;
   glNamedFramebufferTextureLayerEXT := glNamedFramebufferTextureLayerEXT_Direct;
+  glNamedFramebufferTextureMultiviewOVR := glNamedFramebufferTextureMultiviewOVR_Direct;
   glNamedProgramLocalParameter4dEXT := glNamedProgramLocalParameter4dEXT_Direct;
   glNamedProgramLocalParameter4dvEXT := glNamedProgramLocalParameter4dvEXT_Direct;
   glNamedProgramLocalParameter4fEXT := glNamedProgramLocalParameter4fEXT_Direct;
@@ -45334,6 +45485,7 @@ begin
   glRectxOES := glRectxOES_Direct;
   glRectxvOES := glRectxvOES_Direct;
   glReferencePlaneSGIX := glReferencePlaneSGIX_Direct;
+  glReleaseClientPointerRangeMESA := glReleaseClientPointerRangeMESA_Direct;
   glReleaseShaderCompiler := glReleaseShaderCompiler_Direct;
   glRenderGpuMaskNV := glRenderGpuMaskNV_Direct;
   glRenderMode := glRenderMode_Direct;
@@ -46456,7 +46608,6 @@ begin
   DestroyWindow(TmpWindow);
 end;
 {$elseif defined(LINUX)}
-var TmpDisplay: PDisplay;
 procedure LinuxInit;
   var VisualAttribs: array of Int32;
   var ColorMap: TColormap;
@@ -46466,30 +46617,30 @@ procedure LinuxInit;
 begin
   LoadCommands;
   AssignDirect;
-  TmpDisplay := XOpenDisplay(nil);
-  Screen := DefaultScreen(TmpDisplay);
+  glSharedDisplay := XOpenDisplay(nil);
+  Screen := DefaultScreen(glSharedDisplay);
   VisualAttribs := [
     GLX_RGBA, GLX_DEPTH_SIZE, 24,
     GLX_DOUBLEBUFFER, None
   ];
-  VisualInfo := glXChooseVisual(TmpDisplay, 0, @VisualAttribs[0]);
-  ColorMap := XCreateColormap(TmpDisplay, DefaultRootWindow(TmpDisplay), VisualInfo^.visual, AllocNone);
+  VisualInfo := glXChooseVisual(glSharedDisplay, 0, @VisualAttribs[0]);
+  ColorMap := XCreateColormap(glSharedDisplay, DefaultRootWindow(glSharedDisplay), VisualInfo^.visual, AllocNone);
   WindowAttribsInit := Default(TXSetWindowAttributes);
   WindowAttribsInit.colormap := ColorMap;
   glSharedWindow := XCreateWindow(
-    TmpDisplay, RootWindow(TmpDisplay, Screen), 0, 0, 100, 100, 1,
-    DefaultDepth(TmpDisplay, Screen), InputOutput, VisualInfo^.visual,
+    glSharedDisplay, RootWindow(glSharedDisplay, Screen), 0, 0, 100, 100, 1,
+    DefaultDepth(glSharedDisplay, Screen), InputOutput, VisualInfo^.visual,
     CWColormap, @WindowAttribsInit
   );
-  glSharedContext := glXCreateContext(TmpDisplay, VisualInfo, nil, GL_TRUE);
+  glSharedContext := glXCreateContext(glSharedDisplay, VisualInfo, nil, GL_TRUE);
 end;
 
 procedure LinuxFin;
 begin
-  glXMakeCurrent(TmpDisplay, glSharedWindow, glSharedContext);
-  glXDestroyContext(TmpDisplay, glSharedContext);
-  XDestroyWindow(TmpDisplay, glSharedWindow);
-  XCloseDisplay(TmpDisplay);
+  glXMakeCurrent(glSharedDisplay, glSharedWindow, glSharedContext);
+  glXDestroyContext(glSharedDisplay, glSharedContext);
+  XDestroyWindow(glSharedDisplay, glSharedWindow);
+  XCloseDisplay(glSharedDisplay);
 end;
 {$endif}
 

@@ -53,6 +53,7 @@ procedure glSetDebugMode(const Value: Boolean);
 var glSharedDC: HDC;
 var glSharedContext: HGLRC;
 {$elseif defined(LINUX)}
+var glSharedDisplay: PDisplay;
 var glSharedWindow: TWindow;
 var glSharedContext: TGLXContext;
 {$endif}
@@ -239,7 +240,6 @@ begin
   DestroyWindow(TmpWindow);
 end;
 {$elseif defined(LINUX)}
-var TmpDisplay: PDisplay;
 procedure LinuxInit;
   var VisualAttribs: array of Int32;
   var ColorMap: TColormap;
@@ -249,30 +249,30 @@ procedure LinuxInit;
 begin
   LoadCommands;
   AssignDirect;
-  TmpDisplay := XOpenDisplay(nil);
-  Screen := DefaultScreen(TmpDisplay);
+  glSharedDisplay := XOpenDisplay(nil);
+  Screen := DefaultScreen(glSharedDisplay);
   VisualAttribs := [
     GLX_RGBA, GLX_DEPTH_SIZE, 24,
     GLX_DOUBLEBUFFER, None
   ];
-  VisualInfo := glXChooseVisual(TmpDisplay, 0, @VisualAttribs[0]);
-  ColorMap := XCreateColormap(TmpDisplay, DefaultRootWindow(TmpDisplay), VisualInfo^.visual, AllocNone);
+  VisualInfo := glXChooseVisual(glSharedDisplay, 0, @VisualAttribs[0]);
+  ColorMap := XCreateColormap(glSharedDisplay, DefaultRootWindow(glSharedDisplay), VisualInfo^.visual, AllocNone);
   WindowAttribsInit := Default(TXSetWindowAttributes);
   WindowAttribsInit.colormap := ColorMap;
   glSharedWindow := XCreateWindow(
-    TmpDisplay, RootWindow(TmpDisplay, Screen), 0, 0, 100, 100, 1,
-    DefaultDepth(TmpDisplay, Screen), InputOutput, VisualInfo^.visual,
+    glSharedDisplay, RootWindow(glSharedDisplay, Screen), 0, 0, 100, 100, 1,
+    DefaultDepth(glSharedDisplay, Screen), InputOutput, VisualInfo^.visual,
     CWColormap, @WindowAttribsInit
   );
-  glSharedContext := glXCreateContext(TmpDisplay, VisualInfo, nil, GL_TRUE);
+  glSharedContext := glXCreateContext(glSharedDisplay, VisualInfo, nil, GL_TRUE);
 end;
 
 procedure LinuxFin;
 begin
-  glXMakeCurrent(TmpDisplay, glSharedWindow, glSharedContext);
-  glXDestroyContext(TmpDisplay, glSharedContext);
-  XDestroyWindow(TmpDisplay, glSharedWindow);
-  XCloseDisplay(TmpDisplay);
+  glXMakeCurrent(glSharedDisplay, glSharedWindow, glSharedContext);
+  glXDestroyContext(glSharedDisplay, glSharedContext);
+  XDestroyWindow(glSharedDisplay, glSharedWindow);
+  XCloseDisplay(glSharedDisplay);
 end;
 {$endif}
 
